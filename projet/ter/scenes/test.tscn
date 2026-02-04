@@ -1,5 +1,7 @@
 [gd_scene format=3 uid="uid://cs4yw3jfr8grt"]
 
+[ext_resource type="Script" uid="uid://cfieltmctn0dn" path="res://scripts/Slicer01.gd" id="1_errlg"]
+
 [sub_resource type="Environment" id="Environment_ij1v8"]
 
 [sub_resource type="WorldBoundaryShape3D" id="WorldBoundaryShape3D_ij1v8"]
@@ -12,6 +14,7 @@ size = Vector2(5, 5)
 [sub_resource type="BoxMesh" id="BoxMesh_iyx0m"]
 
 [node name="Node3D" type="Node3D" unique_id=627573708]
+script = ExtResource("1_errlg")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=777051070]
 transform = Transform3D(1, 0, 0, 0, 0.9270072, 0.37504348, 0, -0.37504348, 0.9270072, 0, 2.3889978, 3.3309927)
@@ -34,7 +37,8 @@ mesh = SubResource("PlaneMesh_errlg")
 transform = Transform3D(0.44474643, 0.22327906, 0.04844705, -0.1874648, 0.41722554, -0.20194037, -0.13060477, 0.16146027, 0.45483297, 0, 3, 0)
 shape = SubResource("BoxShape3D_bl13t")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="RigidBody3D/CollisionShape3D" unique_id=1866424454]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="RigidBody3D" unique_id=1866424454]
+transform = Transform3D(0.44474643, 0.22327906, 0.04844705, -0.1874648, 0.41722554, -0.20194037, -0.13060477, 0.16146027, 0.45483297, 0, 3, 0)
 mesh = SubResource("BoxMesh_iyx0m")
 
 [node name="Camera3D" type="Camera3D" parent="." unique_id=1427404350]
