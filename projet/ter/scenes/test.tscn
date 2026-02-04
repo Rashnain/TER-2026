@@ -1,0 +1,41 @@
+[gd_scene format=3 uid="uid://cs4yw3jfr8grt"]
+
+[sub_resource type="Environment" id="Environment_ij1v8"]
+
+[sub_resource type="WorldBoundaryShape3D" id="WorldBoundaryShape3D_ij1v8"]
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_errlg"]
+size = Vector2(5, 5)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_bl13t"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_iyx0m"]
+
+[node name="Node3D" type="Node3D" unique_id=627573708]
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=777051070]
+transform = Transform3D(1, 0, 0, 0, 0.9270072, 0.37504348, 0, -0.37504348, 0.9270072, 0, 2.3889978, 3.3309927)
+shadow_enabled = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=781307562]
+environment = SubResource("Environment_ij1v8")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=672403548]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=1513254403]
+shape = SubResource("WorldBoundaryShape3D_ij1v8")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="StaticBody3D/CollisionShape3D" unique_id=1606852947]
+mesh = SubResource("PlaneMesh_errlg")
+
+[node name="RigidBody3D" type="RigidBody3D" parent="." unique_id=940546853]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="RigidBody3D" unique_id=1896998710]
+transform = Transform3D(0.44474643, 0.22327906, 0.04844705, -0.1874648, 0.41722554, -0.20194037, -0.13060477, 0.16146027, 0.45483297, 0, 3, 0)
+shape = SubResource("BoxShape3D_bl13t")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="RigidBody3D/CollisionShape3D" unique_id=1866424454]
+mesh = SubResource("BoxMesh_iyx0m")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=1427404350]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2673097, 4.306574)
