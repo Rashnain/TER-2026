@@ -11,7 +11,23 @@ size = Vector2(5, 5)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_errlg"]
 
-[sub_resource type="BoxMesh" id="BoxMesh_bl13t"]
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_errlg"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bl13t"]
+transparency = 1
+albedo_color = Color(0.015686275, 0.7058824, 1, 0.4509804)
+
+[sub_resource type="BoxMesh" id="BoxMesh_iyx0m"]
+material = SubResource("StandardMaterial3D_bl13t")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_errlg"]
+shading_mode = 0
+albedo_color = Color(1, 0, 0, 1)
+use_point_size = true
+point_size = 10.0
+
+[sub_resource type="PointMesh" id="PointMesh_bl13t"]
+material = SubResource("StandardMaterial3D_errlg")
 
 [node name="Node3D" type="Node3D" unique_id=627573708]
 script = ExtResource("1_errlg")
@@ -32,13 +48,23 @@ shape = SubResource("WorldBoundaryShape3D_ij1v8")
 mesh = SubResource("PlaneMesh_errlg")
 
 [node name="Camera3D" type="Camera3D" parent="." unique_id=1427404350]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2673097, 4.306574)
+transform = Transform3D(1, 0, 0, 0, 0.49999997, 0.8660254, 0, -0.8660254, 0.49999997, 0, 3, 1)
 
 [node name="RigidBody3D" type="RigidBody3D" parent="." unique_id=417707697]
-transform = Transform3D(0.56320876, 0.8263146, 0, -0.8263146, 0.56320876, 0, 0, 0, 1, 0, 3.744036, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.744036, 0)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="RigidBody3D" unique_id=292209534]
 shape = SubResource("BoxShape3D_errlg")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="RigidBody3D" unique_id=578243330]
-mesh = SubResource("BoxMesh_bl13t")
+custom_aabb = AABB(-2, 0, 0, 1, 1, 1)
+mesh = SubResource("CapsuleMesh_errlg")
+
+[node name="points" type="Node3D" parent="." unique_id=1170264140]
+
+[node name="aabb" type="MeshInstance3D" parent="points" unique_id=804332117]
+mesh = SubResource("BoxMesh_iyx0m")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="points" unique_id=568941111]
+cast_shadow = 0
+mesh = SubResource("PointMesh_bl13t")
