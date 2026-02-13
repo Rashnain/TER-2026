@@ -4,14 +4,15 @@
 
 [sub_resource type="Environment" id="Environment_ij1v8"]
 
-[sub_resource type="WorldBoundaryShape3D" id="WorldBoundaryShape3D_ij1v8"]
+[sub_resource type="BoxShape3D" id="BoxShape3D_bl13t"]
+size = Vector3(5, 0, 5)
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_errlg"]
 size = Vector2(5, 5)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_errlg"]
 
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_errlg"]
+[sub_resource type="BoxMesh" id="BoxMesh_errlg"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bl13t"]
 transparency = 1
@@ -42,7 +43,7 @@ environment = SubResource("Environment_ij1v8")
 [node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=672403548]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=1513254403]
-shape = SubResource("WorldBoundaryShape3D_ij1v8")
+shape = SubResource("BoxShape3D_bl13t")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="StaticBody3D/CollisionShape3D" unique_id=1606852947]
 mesh = SubResource("PlaneMesh_errlg")
@@ -57,14 +58,13 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.744036, 0)
 shape = SubResource("BoxShape3D_errlg")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="RigidBody3D" unique_id=578243330]
-custom_aabb = AABB(-2, 0, 0, 1, 1, 1)
-mesh = SubResource("CapsuleMesh_errlg")
+mesh = SubResource("BoxMesh_errlg")
 
-[node name="points" type="Node3D" parent="." unique_id=1170264140]
-
-[node name="aabb" type="MeshInstance3D" parent="points" unique_id=804332117]
+[node name="aabb" type="MeshInstance3D" parent="." unique_id=804332117]
 mesh = SubResource("BoxMesh_iyx0m")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="points" unique_id=568941111]
+[node name="base_point" type="MeshInstance3D" parent="aabb" unique_id=568941111]
 cast_shadow = 0
 mesh = SubResource("PointMesh_bl13t")
+
+[node name="points" type="Node3D" parent="aabb" unique_id=1170264140]
