@@ -1,13 +1,13 @@
 extends Node3D
 
 var aabb: AABB
-var voronoi_points: PackedVector3Array
 @onready var aabb_node: MeshInstance3D = $aabb
 @onready var points_node: Node3D = $aabb/points
 @onready var base_point: MeshInstance3D = $aabb/base_point
-@onready var mesh_to_cut: RigidBody3D = $RigidBody3D
+@onready var node_3d: Node3D = $Node3D
+@onready var mesh_to_cut: RigidBody3D = $Node3D/RigidBody3D
 
-func slice_object(mesh_instance: MeshInstance3D, depth: int):
+func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, depth: int):
 	#await get_tree().create_timer(0.25).timeout
 	if depth == 0:
 		return
@@ -30,7 +30,7 @@ func slice_object(mesh_instance: MeshInstance3D, depth: int):
 
 	#var plane_normal = Vector3(1, 1, 1)
 	#var plane = Plane(plane_normal)
-	var plane = plane_from_points()
+	var plane = plane_from_points(points)
 	plane.normalized()
 
 	for i in range(mdt.get_face_count()):
@@ -55,10 +55,13 @@ func slice_object(mesh_instance: MeshInstance3D, depth: int):
 	var mi3d_left := create_piece(mesh_left, mesh_instance.global_transform, mesh_instance.get_parent().linear_velocity, offset, true)
 	var mi3d_right := create_piece(mesh_right, mesh_instance.global_transform, mesh_instance.get_parent().linear_velocity, -offset, false)
 
+	var points_left := Geometry3D.clip_polygon(points, plane)
+	var points_right := Geometry3D.clip_polygon(points, -plane)
+
 	mesh_instance.get_parent().queue_free()
 
-	slice_object(mi3d_left, depth - 1)
-	slice_object(mi3d_right, depth - 1)
+	slice_object(mi3d_left, points_left, depth - 1)
+	slice_object(mi3d_right, points_right, depth - 1)
 
 func add_poly_to_st(st: SurfaceTool, poly: PackedVector3Array):
 	# fan triangulation
@@ -94,14 +97,14 @@ func create_piece(m: Mesh, t: Transform3D, velocity: Vector3, offset: Vector3, i
 	new_body.add_child(new_shape)
 	#new_body.gravity_scale = 0
 
-	add_child(new_body)
+	node_3d.add_child(new_body)
 	new_body.global_transform = t
 	new_body.global_translate(offset)
 	new_body.linear_velocity = velocity
 
 	return new_mesh_inst
 
-func sample_aabb(amount: int):
+func sample_aabb(points: PackedVector3Array, amount: int):
 	# sample random points into the aabb
 	var start := aabb.position
 	var size := aabb.size
@@ -109,32 +112,31 @@ func sample_aabb(amount: int):
 		var x := randf()
 		var y := randf()
 		var z := randf()
-		voronoi_points.append(Vector3(start.x + size.x * x, start.y + size.y * y, start.z + size.z * z))
+		points.append(Vector3(start.x + size.x * x, start.y + size.y * y, start.z + size.z * z))
 
-func show_points():
-	for point in voronoi_points:
+func show_points(points: PackedVector3Array):
+	for point in points:
 		var new_point := base_point.duplicate()
 		new_point.position = point
 		points_node.add_child(new_point)
 	base_point.visible = false
 
-# TODO pick points that are in the piece
-func plane_from_points() -> Plane:
+func plane_from_points(points: PackedVector3Array) -> Plane:
 	# pick two points and return a plane
-	#print(voronoi_points)
-	var plane_normal := voronoi_points[0] - voronoi_points[1]
-	voronoi_points.remove_at(0)
-	voronoi_points.remove_at(0)
-	return Plane(plane_normal)
+	if points.size() >= 2:
+		var plane_normal := points[0] - points[1]
+		points.remove_at(0)
+		points.remove_at(0)
+		return Plane(plane_normal)
+	return Plane.PLANE_XZ
 
 func _ready():
 	var mesh: MeshInstance3D = mesh_to_cut.get_node("MeshInstance3D")
+	var voronoi_points: PackedVector3Array
 	aabb = mesh.get_aabb()
 	aabb.abs()
 	aabb_node.mesh.size = aabb.size
-	print(aabb.position)
-	print(aabb.size)
-	sample_aabb(50)
-	show_points()
+	sample_aabb(voronoi_points, 50)
+	show_points(voronoi_points)
 	aabb_node.position = Vector3(-1.5, 1, 0)
-	slice_object(mesh, 4)
+	slice_object(mesh, voronoi_points, 4)

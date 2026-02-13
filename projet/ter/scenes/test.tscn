@@ -13,6 +13,7 @@ size = Vector2(5, 5)
 [sub_resource type="BoxShape3D" id="BoxShape3D_errlg"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_errlg"]
+lightmap_size_hint = Vector2i(14, 21)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bl13t"]
 transparency = 1
@@ -51,13 +52,15 @@ mesh = SubResource("PlaneMesh_errlg")
 [node name="Camera3D" type="Camera3D" parent="." unique_id=1427404350]
 transform = Transform3D(1, 0, 0, 0, 0.49999997, 0.8660254, 0, -0.8660254, 0.49999997, 0, 3, 1)
 
-[node name="RigidBody3D" type="RigidBody3D" parent="." unique_id=417707697]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.744036, 0)
+[node name="Node3D" type="Node3D" parent="." unique_id=276558277]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="RigidBody3D" unique_id=292209534]
+[node name="RigidBody3D" type="RigidBody3D" parent="Node3D" unique_id=417707697]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Node3D/RigidBody3D" unique_id=292209534]
 shape = SubResource("BoxShape3D_errlg")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="RigidBody3D" unique_id=578243330]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Node3D/RigidBody3D" unique_id=578243330]
 mesh = SubResource("BoxMesh_errlg")
 
 [node name="aabb" type="MeshInstance3D" parent="." unique_id=804332117]
