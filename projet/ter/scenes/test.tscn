@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://cs4yw3jfr8grt"]
 
-[ext_resource type="Script" uid="uid://cfieltmctn0dn" path="res://scripts/Slicer01.gd" id="1_errlg"]
+[ext_resource type="Script" uid="uid://cfieltmctn0dn" path="res://scripts/slicer.gd" id="1_errlg"]
 
 [sub_resource type="Environment" id="Environment_ij1v8"]
 
