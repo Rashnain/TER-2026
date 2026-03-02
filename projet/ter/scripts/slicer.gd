@@ -13,6 +13,8 @@ var aabb: AABB
 @onready var depth_spin: SpinBox = %DepthSpinBox
 
 var original_mesh_instance: MeshInstance3D
+var bowyer_watson: BowyerWatson3D
+var tetrahedralization_debug_mesh: Node3D
 
 func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, depth: int):
 	if depth <= 0 or mesh_instance == null:
@@ -190,6 +192,11 @@ func show_points(points: PackedVector3Array):
 		points_node.add_child(new_point)
 	base_point.visible = false
 
+func show_tetrahedralization(points: PackedVector3Array):
+	bowyer_watson.bowyer_watson(points)
+	tetrahedralization_debug_mesh = bowyer_watson.create_debug_mesh()
+	add_child(tetrahedralization_debug_mesh)
+
 func plane_from_points(points: PackedVector3Array) -> Plane:
 	# pick two points and return a plane
 	if points.size() >= 2:
@@ -212,6 +219,8 @@ func plane_from_points(points: PackedVector3Array) -> Plane:
 	
 	
 func _ready():
+	bowyer_watson = BowyerWatson3D.new()
+	add_child(bowyer_watson)
 	original_mesh_instance = mesh_to_cut.get_node("MeshInstance3D")
 	points_spin.value = 50 #valeurs par defaut
 	depth_spin.value = 2
@@ -229,6 +238,7 @@ func _on_slice_pressed():
 	var voronoi_points: PackedVector3Array = []
 	sample_aabb(voronoi_points, nb_points)
 	show_points(voronoi_points)
+	show_tetrahedralization(voronoi_points)
 	slice_object(original_mesh_instance, voronoi_points, depth)
 
 func reset_scene():
