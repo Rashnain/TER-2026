@@ -7,6 +7,13 @@ var aabb: AABB
 @onready var node_3d: Node3D = $Node3D
 @onready var mesh_to_cut: RigidBody3D = $Node3D/RigidBody3D
 
+@onready var slice_button: Button = %SliceButton
+@onready var reset_button: Button = %ResetButton
+@onready var points_spin: SpinBox = %PointsSpinBox
+@onready var depth_spin: SpinBox = %DepthSpinBox
+
+var original_mesh_instance: MeshInstance3D
+
 func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, depth: int):
 	if depth <= 0 or mesh_instance == null:
 		return
@@ -40,7 +47,7 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 
 		if poly_left.size() >= 3:
 			add_poly_to_st(st_left, poly_left)
-			# On ne récupère les points d'intersection qu'ici pour limiter les doublons
+			# On récupère les points d'intersection qu'ici pour limiter les doublons
 			for p in poly_left:
 				if abs(plane.distance_to(p)) < 0.0005:
 					intersection_points.append(p)
@@ -192,13 +199,44 @@ func plane_from_points(points: PackedVector3Array) -> Plane:
 		return Plane(plane_normal)
 	return Plane.PLANE_XZ
 
+#func _ready():
+	#var mesh: MeshInstance3D = mesh_to_cut.get_node("MeshInstance3D")
+	#var voronoi_points: PackedVector3Array
+	#aabb = mesh.get_aabb()
+	#aabb.abs()
+	#aabb_node.mesh.size = aabb.size
+	#sample_aabb(voronoi_points, 50)
+	#show_points(voronoi_points)
+	#aabb_node.position = Vector3(-1.5, 1, 0)
+	#slice_object(mesh, voronoi_points, 2)
+	
+	
 func _ready():
-	var mesh: MeshInstance3D = mesh_to_cut.get_node("MeshInstance3D")
-	var voronoi_points: PackedVector3Array
-	aabb = mesh.get_aabb()
+	original_mesh_instance = mesh_to_cut.get_node("MeshInstance3D")
+	points_spin.value = 50 #valeurs par defaut
+	depth_spin.value = 2
+	slice_button.pressed.connect(_on_slice_pressed)
+	reset_button.pressed.connect(reset_scene)
+
+func _on_slice_pressed():
+	clean_pieces()
+	var nb_points = int(points_spin.value)
+	var depth = int(depth_spin.value)
+	aabb = original_mesh_instance.get_aabb()
 	aabb.abs()
 	aabb_node.mesh.size = aabb.size
-	sample_aabb(voronoi_points, 50)
-	show_points(voronoi_points)
 	aabb_node.position = Vector3(-1.5, 1, 0)
-	slice_object(mesh, voronoi_points, 2)
+	var voronoi_points: PackedVector3Array = []
+	sample_aabb(voronoi_points, nb_points)
+	show_points(voronoi_points)
+	slice_object(original_mesh_instance, voronoi_points, depth)
+
+func reset_scene():
+	get_tree().reload_current_scene()
+
+func clean_pieces():
+	for p in points_node.get_children():
+		p.queue_free()
+	base_point.visible = false
+	for child in node_3d.get_children():
+		child.queue_free()
