@@ -70,6 +70,10 @@ class Tetrahedron:
 
 var points: PackedVector3Array = []
 var tetrahedralization: Array[Tetrahedron] = []
+var voronoi_vertices: Array[Vector3] = []
+var voronoi_cells: Dictionary[int, Array] = {}
+
+#==================== Bowyer Watson Functions ==============================
 
 func bowyer_watson(point_list: PackedVector3Array) -> void:
 	points = point_list.duplicate()
@@ -156,6 +160,130 @@ func _insert_one_point(point_index: int):
 			var new_tet = Tetrahedron.new(a, b, c, point_index, points)
 			tetrahedralization.append(new_tet)
 
+#======================= Voronoi Dual Functions ===============================
+
+func build_point_to_tetrahedra() -> Dictionary[int, Array]:
+	var map: Dictionary[int, Array] = {}
+	
+	for i in range(points.size()):
+		map[i] = []
+	
+	for t in tetrahedralization:
+		map[t.a].append(t)
+		map[t.b].append(t)
+		map[t.c].append(t)
+		map[t.d].append(t)
+	
+	return map
+
+func build_tetrahedra_adjacency() -> Dictionary[int, Array]:
+	var tetrahedra_adjacency: Dictionary[int, Array] = {}
+	var face_to_tetrahedra: Dictionary[String, int] = {}
+	for i in range(tetrahedralization.size()):
+		tetrahedra_adjacency[i] = []
+		var t = tetrahedralization[i]
+		var faces: Array[Face] = [
+			Face.new(t.a, t.b, t.c),
+			Face.new(t.a, t.b, t.d),
+			Face.new(t.a, t.c, t.d),
+			Face.new(t.b, t.c, t.d)
+		]
+		
+		for f in faces:
+			var k: String = f.key()
+			if face_to_tetrahedra.has(k):
+				var neighbor = face_to_tetrahedra[k]
+				tetrahedra_adjacency[neighbor].append(i)
+				tetrahedra_adjacency[i].append(neighbor)
+			else:
+				face_to_tetrahedra[k] = i
+	
+	return tetrahedra_adjacency
+
+func sort_vertices_around_edge(vertices: Array, edge_key: String) -> Array[int]:
+	var parts = edge_key.split("_")
+	var a = int(parts[0])
+	var b = int(parts[1])
+	
+	var pa: Vector3 = voronoi_vertices[a]
+	var pb: Vector3 = voronoi_vertices[b]
+	
+	var axis: Vector3 = (pb - pa).normalized()
+	
+	var tmp := Vector3(1, 0, 0)
+	if abs(axis.dot(tmp)) > 0.9:
+		tmp = Vector3(0, 1, 0)
+	
+	var u: Vector3 = axis.cross(tmp).normalized()
+	var v: Vector3 = axis.cross(u).normalized()
+	
+	var angles: Array[Array] = []
+	
+	for i in vertices:
+		var p = voronoi_vertices[i]
+		var vec = p - pa
+		
+		var x: float = vec.dot(u)
+		var y: float = vec.dot(v)
+		var angle: float = atan2(y, x)
+		
+		angles.append([angle, i])
+	
+	angles.sort_custom(func(a, b): return a[0] < b[0])
+	
+	var result: Array[int] = []
+	for angle in angles:
+		result.append(angle[1])
+	
+	return result
+
+func compute_voronoi_diagram() -> void:
+	var tetrahedra_adjacency: Dictionary[int, Array] = build_tetrahedra_adjacency()
+	var cell_edges: Array[Array] = []
+	
+	for t in tetrahedralization:
+		voronoi_vertices.append(t.circumcenter)
+	
+	for i in range(tetrahedralization.size()):
+		for neighbor in tetrahedra_adjacency[i]:
+			if neighbor > i:
+				cell_edges.append([i, neighbor])
+	
+	var edge_to_tetrahedra: Dictionary[String, Array] = {}
+	for i in (tetrahedralization.size()):
+		var t = tetrahedralization[i]
+		var edges: Array[Array] = [
+			[t.a, t.b], [t.a, t.c], [t.a, t.d],
+			[t.b, t.c], [t.b, t.d], [t.c, t.d]
+		]
+		for e in edges:
+			e.sort()
+			var key: String = str(e[0]) + "_" + str(e[1])
+			if not edge_to_tetrahedra.has(key):
+				edge_to_tetrahedra[key] = []
+			edge_to_tetrahedra[key].append(i)
+	
+	var voronoi_faces: Dictionary[String, Array] = {}
+	for key in edge_to_tetrahedra.keys():
+		var incident_tetrahedra = edge_to_tetrahedra[key]
+		if incident_tetrahedra.size() < 2:
+			continue
+		
+		incident_tetrahedra = sort_vertices_around_edge(incident_tetrahedra, key)
+		voronoi_faces[key] = incident_tetrahedra
+	
+	for site in range(points.size()):
+		voronoi_cells[site] = []
+	
+	for key in voronoi_faces.keys():
+		var parts = key.split("_")
+		var a = int(parts[0])
+		var b = int(parts[1])
+		voronoi_cells[a].append(voronoi_faces[key])
+		voronoi_cells[b].append(voronoi_faces[key])
+
+#========================= DEBUG FUNCTIONS ===============================
+
 func create_debug_mesh() -> MeshInstance3D:
 	var mesh := ImmediateMesh.new()
 	mesh.clear_surfaces()
@@ -189,6 +317,30 @@ func create_debug_mesh() -> MeshInstance3D:
 	
 	return instance
 
+func create_debug_voronoi_mesh() -> MeshInstance3D:
+	var mesh := ImmediateMesh.new()
+	mesh.clear_surfaces()
+	
+	mesh.surface_begin(Mesh.PRIMITIVE_LINES)
+	
+	for key in voronoi_cells.keys():
+		var faces: Array = voronoi_cells[key]
+		for f in faces:
+			for i in range(f.size() - 1):
+				_draw_edge(mesh, voronoi_vertices[f[i]], voronoi_vertices[f[i+1]])
+			_draw_edge(mesh, voronoi_vertices[f[f.size()-1]], voronoi_vertices[f[0]])
+	
+	mesh.surface_end()
+	
+	var instance := MeshInstance3D.new()
+	instance.mesh = mesh
+	
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = Color.RED
+	instance.material_override = mat
+	
+	return instance
 
 func _draw_edge(mesh: ImmediateMesh, a: Vector3, b: Vector3):
 	mesh.surface_add_vertex(a)

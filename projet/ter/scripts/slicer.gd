@@ -15,6 +15,7 @@ var aabb: AABB
 var original_mesh_instance: MeshInstance3D
 var bowyer_watson: BowyerWatson3D
 var tetrahedralization_debug_mesh: Node3D
+var voronoi_diagram_debug_mesh: Node3D
 
 func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, depth: int):
 	if depth <= 0 or mesh_instance == null:
@@ -194,8 +195,11 @@ func show_points(points: PackedVector3Array):
 
 func show_tetrahedralization(points: PackedVector3Array):
 	bowyer_watson.bowyer_watson(points)
+	bowyer_watson.compute_voronoi_diagram()
 	tetrahedralization_debug_mesh = bowyer_watson.create_debug_mesh()
 	add_child(tetrahedralization_debug_mesh)
+	voronoi_diagram_debug_mesh = bowyer_watson.create_debug_voronoi_mesh()
+	add_child(voronoi_diagram_debug_mesh)
 
 func plane_from_points(points: PackedVector3Array) -> Plane:
 	# pick two points and return a plane
