@@ -13,6 +13,8 @@ size = Vector2(5, 5)
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_errlg"]
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_bl13t"]
+radial_segments = 16
+rings = 2
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bl13t"]
 transparency = 1
@@ -51,26 +53,32 @@ mesh = SubResource("PlaneMesh_errlg")
 [node name="Camera3D" type="Camera3D" parent="." unique_id=1427404350]
 transform = Transform3D(1, 0, 0, 0, 0.8706821, 0.4918462, 0, -0.4918462, 0.8706821, 0, 2.3660893, 2.4314792)
 
-[node name="Node3D" type="Node3D" parent="." unique_id=276558277]
+[node name="pieces" type="Node3D" parent="." unique_id=276558277]
+unique_name_in_owner = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
 
-[node name="RigidBody3D" type="RigidBody3D" parent="Node3D" unique_id=417707697]
+[node name="RigidBody3D" type="RigidBody3D" parent="pieces" unique_id=417707697]
 transform = Transform3D(0.9861093, 0.16609757, 0, -0.16609757, 0.9861093, 0, 0, 0, 1, 0, 0, 0)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Node3D/RigidBody3D" unique_id=292209534]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="pieces/RigidBody3D" unique_id=292209534]
 shape = SubResource("CapsuleShape3D_errlg")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Node3D/RigidBody3D" unique_id=578243330]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="pieces/RigidBody3D" unique_id=578243330]
 mesh = SubResource("CapsuleMesh_bl13t")
 
 [node name="aabb" type="MeshInstance3D" parent="." unique_id=804332117]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 1, 0)
 mesh = SubResource("BoxMesh_iyx0m")
 
 [node name="base_point" type="MeshInstance3D" parent="aabb" unique_id=568941111]
+unique_name_in_owner = true
+visible = false
 cast_shadow = 0
 mesh = SubResource("PointMesh_bl13t")
 
 [node name="points" type="Node3D" parent="aabb" unique_id=1170264140]
+unique_name_in_owner = true
 
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=2030804686]
 
@@ -102,6 +110,8 @@ text = "Nb Points"
 [node name="PointsSpinBox" type="SpinBox" parent="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer" unique_id=1211842885]
 unique_name_in_owner = true
 layout_mode = 2
+min_value = 2.0
+value = 50.0
 
 [node name="HBoxContainer2" type="HBoxContainer" parent="CanvasLayer/Control/PanelContainer/VBoxContainer" unique_id=2044941622]
 layout_mode = 2
@@ -113,6 +123,19 @@ text = "Nb Plans"
 [node name="DepthSpinBox" type="SpinBox" parent="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer2" unique_id=1184235946]
 unique_name_in_owner = true
 layout_mode = 2
+min_value = 1.0
+max_value = 50.0
+value = 2.0
+
+[node name="HBoxContainer3" type="HBoxContainer" parent="CanvasLayer/Control/PanelContainer/VBoxContainer" unique_id=1092337495]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer3" unique_id=531849862]
+layout_mode = 2
+text = "Wireframe"
+
+[node name="CheckButton" type="CheckButton" parent="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer3" unique_id=1079281868]
+layout_mode = 2
 
 [node name="SliceButton" type="Button" parent="CanvasLayer/Control/PanelContainer/VBoxContainer" unique_id=1007680607]
 unique_name_in_owner = true
@@ -123,3 +146,7 @@ text = "Slice"
 unique_name_in_owner = true
 layout_mode = 2
 text = "Reset"
+
+[connection signal="toggled" from="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer3/CheckButton" to="." method="_on_check_button_toggled"]
+[connection signal="pressed" from="CanvasLayer/Control/PanelContainer/VBoxContainer/SliceButton" to="." method="_on_slice_button_pressed"]
+[connection signal="pressed" from="CanvasLayer/Control/PanelContainer/VBoxContainer/ResetButton" to="." method="_on_reset_button_pressed"]
