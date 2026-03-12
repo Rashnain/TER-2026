@@ -44,7 +44,7 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 		var v2 := mdt.get_vertex(mdt.get_face_vertex(i, 1))
 		var v3 := mdt.get_vertex(mdt.get_face_vertex(i, 2))
 		var triangle := PackedVector3Array([v1, v2, v3])
-		
+
 		var poly_left := Geometry3D.clip_polygon(triangle, plane)
 		var poly_right := Geometry3D.clip_polygon(triangle, -plane)
 
@@ -165,6 +165,16 @@ func show_points(points: PackedVector3Array):
 		new_point.visible = true
 		points_node.add_child(new_point)
 
+func show_points_2d(points: PackedVector2Array, color: Color):
+	for point in points:
+		var new_point := MeshInstance3D.new()
+		new_point.mesh = PointMesh.new()
+		new_point.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		new_point.position = Vector3(point.x, 0, point.y)
+		new_point.mesh.material = base_point.mesh.material.duplicate()
+		new_point.mesh.material.albedo_color = color
+		points_node.add_child(new_point)
+
 func show_tetrahedralization(points: PackedVector3Array):
 	bowyer_watson.bowyer_watson(points)
 	bowyer_watson.compute_voronoi_diagram()
@@ -186,6 +196,13 @@ func _ready():
 	bowyer_watson = BowyerWatson3D.new()
 	add_child(bowyer_watson)
 	original_mesh_instance = mesh_to_cut.get_node("MeshInstance3D")
+	var polygon := [Vector2(0.6, 1), Vector2(0.2, 1), Vector2(0.4, 0.6), Vector2(0.0, 0.6), Vector2(0.6, 0.2), Vector2(0.2, 0.2)]
+	var clip_polygon := [Vector2(0.4, 0.4), Vector2(0.4, 0.0), Vector2(0.8, 0.2)]
+	show_points_2d(polygon, Color.GREEN)
+	show_points_2d(clip_polygon, Color.YELLOW)
+	var res := await ClipPolygon.clip_polygon_2d(polygon, clip_polygon)
+	#show_points_2d(res[0], Color.BLACK)
+	#show_points_2d(res[1], Color.WHITE)
 
 func _on_slice_button_pressed():
 	clean_pieces()
