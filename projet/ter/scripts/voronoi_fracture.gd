@@ -1,6 +1,6 @@
 extends Node3D
 
-class_name BowyerWatson3D
+class_name VoronoiFracture
 
 class Edge:
 	var a: int
@@ -67,6 +67,7 @@ class Tetrahedron:
 		
 		circumradius = (circumcenter - v0).length()
 
+const EPSILON := 1e-6
 
 var points: PackedVector3Array = []
 var tetrahedralization: Array[Tetrahedron] = []
@@ -281,6 +282,118 @@ func compute_voronoi_diagram() -> void:
 		var b = int(parts[1])
 		voronoi_cells[a].append(voronoi_faces[key])
 		voronoi_cells[b].append(voronoi_faces[key])
+
+#========================= VORONOI FRACTURE ==============================
+
+static func _extract_triangles(mesh: ArrayMesh) -> Array[PackedVector3Array]:
+	var result: Array[PackedVector3Array] = []
+	for surface in mesh.get_surface_count():
+		if mesh.surface_get_primitive_type(surface) != Mesh.PRIMITIVE_TRIANGLES:
+			continue
+		var arrays := mesh.surface_get_arrays(surface)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var triangle_indices = arrays[Mesh.ARRAY_INDEX]
+ 
+		if triangle_indices == null or triangle_indices.is_empty():
+			#Case when triangles are unindexed
+			var i: int = 0
+			while i + 2 < vertices.size():
+				var triangle := PackedVector3Array([vertices[i], vertices[i+1], vertices[i+2]])
+				result.append(triangle)
+				i += 3
+		else:
+			var j: int = 0
+			while j + 2 < triangle_indices.size():
+				var triangle := PackedVector3Array([
+					vertices[triangle_indices[j]],
+					vertices[triangle_indices[j+1]],
+					vertices[triangle_indices[j+2]]
+				])
+				result.append(triangle)
+				j += 3
+	return result
+
+static func _build_cutting_plane(triangle: PackedVector3Array) -> Dictionary:
+	var v0: Vector3 = triangle[0]
+	var v1: Vector3 = triangle[1]
+	var v2: Vector3 = triangle[2]
+	var n: Vector3 = (v1 - v0).cross(v2 - v0)
+	n = n.normalized()
+	return {"point": v0, "normal": n}
+
+static func _aabb_of_voronoi_cell(cell_faces: Array) -> AABB:
+	var aabb := AABB()
+	var first := true
+	for face in cell_faces:
+		for v: Vector3 in face:
+			if first:
+				aabb = AABB(v, Vector3.ZERO)
+				first = false
+			else:
+				aabb = aabb.expand(v)
+	return aabb.grow(EPSILON) #Expand slightly the bounding box for overlapping errors
+
+static func _aabb_intersects_triangle(aabb: AABB, triangle: PackedVector3Array) -> bool:
+	var triangle_min := triangle[0].min(triangle[1]).min(triangle[2])
+	var triangle_max := triangle[0].max(triangle[1]).max(triangle[2])
+	var triangle_aabb := AABB(triangle_min, triangle_max - triangle_min)
+	return aabb.intersects(triangle_aabb)
+
+static func _triangulate_polygon(poly: PackedVector3Array) -> Array:
+	var triangles: Array = []
+	var count: int = poly.size()
+	if count < 3:
+		return triangles
+	var v0: Vector3 = poly[0]
+	for i in range(1, count - 1):
+		triangles.append(PackedVector3Array([v0, poly[i], poly[i + 1]]))
+	return triangles
+
+static func _poly_normal(poly: PackedVector3Array) -> Vector3:
+	var n := Vector3.ZERO
+	var count: int = poly.size()
+	for i in count:
+		var cur: Vector3  = poly[i]
+		var next: Vector3 = poly[(i + 1) % count]
+		n.x += (cur.y - next.y) * (cur.z + next.z)
+		n.y += (cur.z - next.z) * (cur.x + next.x)
+		n.z += (cur.x - next.x) * (cur.y + next.y)
+	var norm: float = n.length()
+	if norm < EPSILON:
+		return Vector3.UP
+	return n / norm
+ 
+func fracture(mesh: ArrayMesh, cells: Dictionary) -> Array:
+	var triangles: Array[PackedVector3Array] = _extract_triangles(mesh)
+	var results: Array[ArrayMesh] = []
+ 
+	for key: int in cells.keys():
+		var seed: Vector3 = points[key]
+		var cell_faces_by_indices: Array = cells[key]
+		var cell_faces: Array = []
+		for face_by_indices: Array[int] in cell_faces_by_indices:
+			var face: PackedVector3Array = []
+			for ti in face_by_indices:
+				face.append(voronoi_vertices[ti])
+			cell_faces.append(face)
+		
+ 
+		# AABB of this cell for fast triangle rejection
+		var cell_aabb := _aabb_of_voronoi_cell(cell_faces)
+		
+		for triangle in triangles:
+			# Fast reject: skip triangles whose AABB doesn't touch the cell AABB
+			if not _aabb_intersects_triangle(cell_aabb, triangle):
+				continue
+			
+			var cutting_plane = _build_cutting_plane(triangle)
+			
+			for fi in range(cell_faces.size()):
+				var face: PackedVector3Array = cell_faces[fi]
+				var clipped_face = Geometry3D.clip_polygon(face, -cutting_plane)
+				cell_faces[fi] = clipped_face
+ 
+	return results
 
 #========================= DEBUG FUNCTIONS ===============================
 

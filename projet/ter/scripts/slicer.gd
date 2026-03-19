@@ -13,7 +13,7 @@ var aabb: AABB
 @onready var depth_spin: SpinBox = %DepthSpinBox
 
 var original_mesh_instance: MeshInstance3D
-var bowyer_watson: BowyerWatson3D
+var voronoi_fracture: VoronoiFracture
 var tetrahedralization_debug_mesh: Node3D
 var voronoi_diagram_debug_mesh: Node3D
 
@@ -192,11 +192,11 @@ func show_points_2d(points: PackedVector2Array, color: Color):
 		points_node.add_child(new_point)
 
 func show_tetrahedralization(points: PackedVector3Array):
-	bowyer_watson.bowyer_watson(points)
-	bowyer_watson.compute_voronoi_diagram()
-	tetrahedralization_debug_mesh = bowyer_watson.create_debug_mesh()
+	voronoi_fracture.bowyer_watson(points)
+	voronoi_fracture.compute_voronoi_diagram()
+	tetrahedralization_debug_mesh = voronoi_fracture.create_debug_mesh()
 	add_child(tetrahedralization_debug_mesh)
-	voronoi_diagram_debug_mesh = bowyer_watson.create_debug_voronoi_mesh()
+	voronoi_diagram_debug_mesh = voronoi_fracture.create_debug_voronoi_mesh()
 	add_child(voronoi_diagram_debug_mesh)
 
 # pick two points and return a plane
@@ -209,8 +209,8 @@ func plane_from_points(points: PackedVector3Array) -> Plane:
 	return Plane.PLANE_XZ
 
 func _ready():
-	#bowyer_watson = BowyerWatson3D.new()
-	#add_child(bowyer_watson)
+	voronoi_fracture = VoronoiFracture.new()
+	add_child(voronoi_fracture)
 	original_mesh_instance = mesh_to_cut.get_node("MeshInstance3D")
 	var polygon := [Vector2(0.6, 1), Vector2(0.2, 1), Vector2(0.4, 0.6), Vector2(0.0, 0.6), Vector2(0.6, 0.2), Vector2(0.2, 0.2)]
 	var clip_polygon := [Vector2(0.4, 0.4), Vector2(0.4, 0.0), Vector2(0.8, 0.2)]
@@ -229,8 +229,8 @@ func _on_slice_button_pressed():
 	aabb_node.mesh.size = aabb.size
 	var voronoi_points: PackedVector3Array = []
 	sample_aabb(voronoi_points, nb_points)
-	#show_points(voronoi_points)
-	#show_tetrahedralization(voronoi_points)
+	show_points(voronoi_points)
+	show_tetrahedralization(voronoi_points)
 	slice_object(original_mesh_instance, voronoi_points, depth)
 	slice_button.disabled = true
 
