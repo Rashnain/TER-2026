@@ -10,11 +10,9 @@ size = Vector3(5, 0, 5)
 [sub_resource type="PlaneMesh" id="PlaneMesh_errlg"]
 size = Vector2(5, 5)
 
-[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_errlg"]
+[sub_resource type="SphereShape3D" id="SphereShape3D_errlg"]
 
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_bl13t"]
-radial_segments = 16
-rings = 2
+[sub_resource type="SphereMesh" id="SphereMesh_bl13t"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bl13t"]
 transparency = 1
@@ -45,6 +43,7 @@ environment = SubResource("Environment_ij1v8")
 [node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=672403548]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=1513254403]
+transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0)
 shape = SubResource("BoxShape3D_bl13t")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="StaticBody3D/CollisionShape3D" unique_id=1606852947]
@@ -61,10 +60,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
 transform = Transform3D(0.9861093, 0.16609757, 0, -0.16609757, 0.9861093, 0, 0, 0, 1, 0, 0, 0)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="pieces/RigidBody3D" unique_id=292209534]
-shape = SubResource("CapsuleShape3D_errlg")
+shape = SubResource("SphereShape3D_errlg")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="pieces/RigidBody3D" unique_id=578243330]
-mesh = SubResource("CapsuleMesh_bl13t")
+mesh = SubResource("SphereMesh_bl13t")
 
 [node name="aabb" type="MeshInstance3D" parent="." unique_id=804332117]
 unique_name_in_owner = true
@@ -85,8 +84,10 @@ unique_name_in_owner = true
 [node name="Control" type="Control" parent="CanvasLayer" unique_id=1792937907]
 layout_mode = 3
 anchors_preset = 0
-offset_right = 40.0
-offset_bottom = 40.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = 50.0
+offset_bottom = 50.0
 
 [node name="PanelContainer" type="PanelContainer" parent="CanvasLayer/Control" unique_id=742879663]
 layout_mode = 0

@@ -21,12 +21,24 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 	if depth <= 0 or mesh_instance == null:
 		return
 
+	# 1. Prepare the Initial Mesh Data
 	var array_mesh: ArrayMesh
 	if mesh_instance.mesh is PrimitiveMesh:
 		array_mesh = ArrayMesh.new()
 		array_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, mesh_instance.mesh.get_mesh_arrays())
 	else:
 		array_mesh = mesh_instance.mesh
+
+	
+	if points.size() < 2: return
+	var p1 = points[0]
+	var p2 = points[1]
+	var plane_normal = (p1 - p2).normalized()	#on trouve la normale au plan
+	var plane_point = (p1 + p2) / 2.0 #on trouve le centre du plan (sinon par defaut c'est l'origine du monde)
+	var plane = Plane(plane_normal, plane_point)
+	
+	points.remove_at(0)
+	points.remove_at(0)
 
 	var st_left = SurfaceTool.new()
 	var st_right = SurfaceTool.new()
@@ -36,7 +48,6 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 	var mdt = MeshDataTool.new()
 	mdt.create_from_surface(array_mesh, 0)
 
-	var plane = plane_from_points(points)
 	var intersection_points : PackedVector3Array = []
 
 	for i in range(mdt.get_face_count()):
@@ -50,10 +61,10 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 
 		if poly_left.size() >= 3:
 			add_poly_to_st(st_left, poly_left)
-			# On récupère les points d'intersection qu'ici pour limiter les doublons
 			for p in poly_left:
-				if abs(plane.distance_to(p)) < 0.0005:
+				if abs(plane.distance_to(p)) < 0.001:
 					intersection_points.append(p)
+					
 		if poly_right.size() >= 3:
 			add_poly_to_st(st_right, poly_right)
 
@@ -61,24 +72,21 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 		fill_cut_hole(st_left, intersection_points, plane)
 		fill_cut_hole(st_right, intersection_points, -plane)
 
-	st_left.index()
-	st_left.generate_normals()
-	st_right.index()
-	st_right.generate_normals()
-	
-	var mesh_left = st_left.commit()
-	var mesh_right = st_right.commit()
+	var mesh_left = finalize_st(st_left)
+	var mesh_right = finalize_st(st_right)
 
-	var velocity = mesh_instance.get_parent().linear_velocity if mesh_instance.get_parent() is RigidBody3D else Vector3.ZERO
+	var parent_body = mesh_instance.get_parent()
+	var velocity = parent_body.linear_velocity if parent_body is RigidBody3D else Vector3.ZERO
+	var trans = mesh_instance.global_transform
 
-	var mi3d_left = create_piece(mesh_left, mesh_instance.global_transform, velocity, plane.normal * 0.001, true) #offset pour eviter souci de collision
-	var mi3d_right = create_piece(mesh_right, mesh_instance.global_transform, velocity, -plane.normal * 0.001, false)
+	var mi3d_left = create_piece(mesh_left, trans, velocity, plane.normal * 0.005, true)
+	var mi3d_right = create_piece(mesh_right, trans, velocity, -plane.normal * 0.005, false)
 
-	mesh_instance.get_parent().queue_free()
+	parent_body.queue_free()
 
 	if points.size() >= 2:
-		slice_object(mi3d_left, points, depth - 1)
-		slice_object(mi3d_right, points, depth - 1)
+		if mi3d_left: slice_object(mi3d_left, points.duplicate(), depth - 1)
+		if mi3d_right: slice_object(mi3d_right, points.duplicate(), depth - 1)
 
 func fill_cut_hole(st: SurfaceTool, points: PackedVector3Array, plane: Plane):
 	if points.size() < 3: return
@@ -112,7 +120,15 @@ func fill_cut_hole(st: SurfaceTool, points: PackedVector3Array, plane: Plane):
 		st.add_vertex(p1)
 		st.add_vertex(p2)
 		st.add_vertex(p3)
-
+	
+	#LA IL FAUT RAJOUTER POUR LES UVs MAIS DUR A OPTI
+			
+func finalize_st(st: SurfaceTool) -> Mesh:
+	st.index()
+	st.generate_normals()
+	#st.generate_tangents() #il faut les Uvs pour ça
+	return st.commit()
+	
 func add_poly_to_st(st: SurfaceTool, poly: PackedVector3Array):
 	# fan triangulation
 	for i in range(1, poly.size() - 1):
@@ -193,14 +209,14 @@ func plane_from_points(points: PackedVector3Array) -> Plane:
 	return Plane.PLANE_XZ
 
 func _ready():
-	bowyer_watson = BowyerWatson3D.new()
-	add_child(bowyer_watson)
+	#bowyer_watson = BowyerWatson3D.new()
+	#add_child(bowyer_watson)
 	original_mesh_instance = mesh_to_cut.get_node("MeshInstance3D")
 	var polygon := [Vector2(0.6, 1), Vector2(0.2, 1), Vector2(0.4, 0.6), Vector2(0.0, 0.6), Vector2(0.6, 0.2), Vector2(0.2, 0.2)]
 	var clip_polygon := [Vector2(0.4, 0.4), Vector2(0.4, 0.0), Vector2(0.8, 0.2)]
-	show_points_2d(polygon, Color.GREEN)
-	show_points_2d(clip_polygon, Color.YELLOW)
-	var res := await ClipPolygon.clip_polygon_2d(polygon, clip_polygon)
+	#show_points_2d(polygon, Color.GREEN)
+	#show_points_2d(clip_polygon, Color.YELLOW)
+	var res := ClipPolygon.clip_polygon_2d(polygon, clip_polygon)
 	#show_points_2d(res[0], Color.BLACK)
 	#show_points_2d(res[1], Color.WHITE)
 
@@ -213,8 +229,8 @@ func _on_slice_button_pressed():
 	aabb_node.mesh.size = aabb.size
 	var voronoi_points: PackedVector3Array = []
 	sample_aabb(voronoi_points, nb_points)
-	show_points(voronoi_points)
-	show_tetrahedralization(voronoi_points)
+	#show_points(voronoi_points)
+	#show_tetrahedralization(voronoi_points)
 	slice_object(original_mesh_instance, voronoi_points, depth)
 	slice_button.disabled = true
 
