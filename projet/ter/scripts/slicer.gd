@@ -212,13 +212,17 @@ func _ready():
 	voronoi_fracture = VoronoiFracture.new()
 	add_child(voronoi_fracture)
 	original_mesh_instance = mesh_to_cut.get_node("MeshInstance3D")
-	var polygon := [Vector2(0.6, 1), Vector2(0.2, 1), Vector2(0.4, 0.6), Vector2(0.0, 0.6), Vector2(0.6, 0.2), Vector2(0.2, 0.2)]
-	var clip_polygon := [Vector2(0.4, 0.4), Vector2(0.4, 0.0), Vector2(0.8, 0.2)]
-	#show_points_2d(polygon, Color.GREEN)
-	#show_points_2d(clip_polygon, Color.YELLOW)
-	var res := ClipPolygon.clip_polygon_2d(polygon, clip_polygon)
-	#show_points_2d(res[0], Color.BLACK)
-	#show_points_2d(res[1], Color.WHITE)
+	var polygon_crescent := [Vector2(0.6, 1), Vector2(0.2, 1), Vector2(0.0, 0.6), Vector2(0.2, 0.2), Vector2(0.6, 0.2), Vector2(0.4, 0.6)]
+	var clip_polygon_triangle := [Vector2(0.4, 0.4), Vector2(0.4, 0.0), Vector2(0.8, 0.2)]
+	var polygon_square := [Vector2(0, 0), Vector2(0.67, 0), Vector2(0.67, 0.67), Vector2(0, 0.67)]
+	var clip_square := [Vector2(0.33, 0.33), Vector2(1, 0.33), Vector2(1, 1), Vector2(0.33, 1)]
+	show_points_2d(polygon_crescent, Color.GREEN)
+	show_points_2d(clip_polygon_triangle, Color.YELLOW)
+	var res := ClipPolygon.clip_polygon_2d(polygon_crescent, clip_polygon_triangle)
+	#show_points_2d(polygon_square, Color.GREEN)
+	#show_points_2d(clip_square, Color.YELLOW)
+	#var res := ClipPolygon.clip_polygon_2d(polygon_square, clip_square)
+	show_points_2d(res, Color.BLACK)
 
 func _on_slice_button_pressed():
 	clean_pieces()
