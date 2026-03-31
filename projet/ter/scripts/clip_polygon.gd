@@ -17,18 +17,10 @@ static func intersection(v1: Vector2, v2: Vector2, clip_v1: Vector2, clip_v2: Ve
 	return Vector2(x, y)
 
 
-static func intersection_stupid(v1: Vector2, v2: Vector2, clip_v1: Vector2, clip_v2: Vector2) -> Vector2:
-	var edge := v2 - v1
-	var length := edge.length()
-	var dir := edge.normalized()
-	var clip_edge := (clip_v2 - clip_v1).normalized()
-	var clip_edge_v3 := Vector3(clip_edge.x, 0, clip_edge.y)
-	var clip_edge_normal_v3 := clip_edge_v3.cross(Vector3(0, 1, 0)).normalized()
-	var clip_edge_normal := Vector2(clip_edge_normal_v3.x, clip_edge_normal_v3.z)
-	var t = (clip_v1 - v1).dot(clip_edge_normal) / dir.dot(clip_edge_normal)
-	if t > 0 && t < length:
-		return v1 + dir * t
-	return Vector2.ZERO
+static func ray_plane_intersection(plan_point: Vector3, plan_normal: Vector3, ray_origin: Vector3, ray_dest: Vector3) -> Vector3:
+	var destination := (ray_dest - ray_origin).normalized()
+	var t := (plan_point - ray_origin).dot(plan_normal) / destination.dot(plan_normal)
+	return ray_origin + t * destination
 
 
 # Sutherland–Hodgman algorithm
@@ -70,6 +62,54 @@ static func clip_polygon_2d(polygon: PackedVector2Array, clipping_polygon: Packe
 	return output
 
 
-static func clip_polygon_3d(polygon: PackedVector3Array, clipping_polygon: PackedVector3Array) -> Array[PackedVector3Array]:
-	var results : Array[PackedVector3Array] = []
+static func clip_polygon_3d(triangle: PackedVector3Array, clipping_points: PackedVector3Array, clipping_indices: Array[int]) -> Array[PackedVector3Array]:
+	var results : Array[PackedVector3Array] = [] # [inside, outside]
+
+	var triangle_count := clipping_indices.size() / 3;
+
+	var input := triangle.duplicate()
+	var output := triangle.duplicate()
+	output.clear()
+
+	#results.append(input)
+	#results.append(output)
+
+	for i in triangle_count:
+		var a := clipping_indices[i * 3]
+		var b := clipping_indices[i * 3 + 1]
+		var c := clipping_indices[i * 3 + 2]
+		print(a, " ", b, " ", c)
+		var ab := clipping_points[b] - clipping_points[a]
+		var ac := clipping_points[c] - clipping_points[a]
+		var normal := ac.cross(ab).normalized()
+		print(normal)
+
+		for y in range(len(input)):
+			var current_point := input[y]
+			var prev_point := input[(y - 1) % len(input)]
+
+			var current_inside := (clipping_points[a] - current_point).dot(normal)
+			var prev_inside := (clipping_points[a] - prev_point).dot(normal)
+
+			if current_inside >= 0:
+				print("%d: %f %f %f is inside" % [y, current_point.x, current_point.y, current_point.z])
+				if not prev_inside >= 0:
+					print("prev outside")
+					var intersection_point := ray_plane_intersection(clipping_points[a], normal, current_point, prev_point)
+					print(intersection_point)
+					output.append(intersection_point)
+				output.append(current_point)
+			else:
+				print("%d: %f %f %f is outside" % [y, current_point.x, current_point.y, current_point.z])
+				if prev_inside >= 0:
+					print("prev inside")
+					var intersection_point := ray_plane_intersection(clipping_points[a], normal, prev_point, current_point)
+					print(intersection_point)
+					output.append(intersection_point)
+
+		input = output.duplicate()
+		output.clear()
+
+	results.append(input)
+
 	return results

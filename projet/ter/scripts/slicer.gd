@@ -195,11 +195,17 @@ func show_points(points: PackedVector3Array):
 		points_node.add_child(new_point)
 
 func show_points_2d(points: PackedVector2Array, color: Color):
+	var points_3d : PackedVector3Array = []
+	for point in points:
+		points_3d.append(Vector3(point.x, 0, point.y))
+	show_points_3d(points_3d, color)
+
+func show_points_3d(points: PackedVector3Array, color: Color):
 	for point in points:
 		var new_point := MeshInstance3D.new()
 		new_point.mesh = PointMesh.new()
 		new_point.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		new_point.position = Vector3(point.x, 0, point.y)
+		new_point.position = point
 		new_point.mesh.material = base_point.mesh.material.duplicate()
 		new_point.mesh.material.albedo_color = color
 		points_node.add_child(new_point)
@@ -225,17 +231,30 @@ func _ready():
 	voronoi_fracture = VoronoiFracture.new()
 	add_child(voronoi_fracture)
 	original_mesh_instance = mesh_to_cut.get_node("MeshInstance3D")
-	var polygon_crescent := [Vector2(0.6, 1), Vector2(0.2, 1), Vector2(0.0, 0.6), Vector2(0.2, 0.2), Vector2(0.6, 0.2), Vector2(0.4, 0.6)]
-	var clip_polygon_triangle := [Vector2(0.4, 0.4), Vector2(0.4, 0.0), Vector2(0.8, 0.2)]
-	var polygon_square := [Vector2(0, 0), Vector2(0.67, 0), Vector2(0.67, 0.67), Vector2(0, 0.67)]
-	var clip_square := [Vector2(0.33, 0.33), Vector2(1, 0.33), Vector2(1, 1), Vector2(0.33, 1)]
+
+	aabb_node.rotate(Vector3.UP, PI/2) # debug pour ce qu'il y a en dessous
+
+	#var polygon_crescent := [Vector2(0.6, 1), Vector2(0.2, 1), Vector2(0.0, 0.6), Vector2(0.2, 0.2), Vector2(0.6, 0.2), Vector2(0.4, 0.6)]
+	#var clip_polygon_triangle := [Vector2(0.4, 0.4), Vector2(0.4, 0.0), Vector2(0.8, 0.2)]
 	#show_points_2d(polygon_crescent, Color.GREEN)
 	#show_points_2d(clip_polygon_triangle, Color.YELLOW)
-	var res := ClipPolygon.clip_polygon_2d(polygon_crescent, clip_polygon_triangle)
+	#var res := ClipPolygon.clip_polygon_2d(polygon_crescent, clip_polygon_triangle)
+	#show_points_2d(res, Color.BLACK)
+
+	#var polygon_square := [Vector2(0, 0), Vector2(0.67, 0), Vector2(0.67, 0.67), Vector2(0, 0.67)]
+	#var clip_square := [Vector2(0.33, 0.33), Vector2(1, 0.33), Vector2(1, 1), Vector2(0.33, 1)]
 	#show_points_2d(polygon_square, Color.GREEN)
 	#show_points_2d(clip_square, Color.YELLOW)
 	#var res := ClipPolygon.clip_polygon_2d(polygon_square, clip_square)
 	#show_points_2d(res, Color.BLACK)
+
+	var triangle := [Vector3(0.75, 0.25, 0.75), Vector3(0, 0.67, 0), Vector3(0.33, 0.5, -0.5)]
+	var clip_tetrahedron := [Vector3(1, 0, 0), Vector3(0, 0, 1), Vector3(1, 0, 1), Vector3(0.67, 1, 0.67)]
+	var clip_indices : Array[int] = [0, 3, 1, 1, 3, 2, 2, 3, 0, 0, 1, 2]
+	show_points_3d(triangle, Color.GREEN)
+	show_points_3d(clip_tetrahedron, Color.YELLOW)
+	var res := ClipPolygon.clip_polygon_3d(triangle, clip_tetrahedron, clip_indices)
+	show_points_3d(res[0], Color.BLACK)
 
 func _on_slice_button_pressed():
 	clean_pieces()
