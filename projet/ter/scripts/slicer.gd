@@ -34,6 +34,7 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 	var p1 = points[0]
 	var p2 = points[1]
 	var plane_normal = (p1 - p2).normalized()	#on trouve la normale au plan
+	plane_normal = (plane_normal + Vector3(randf_range(-0.1, 0.1), randf_range(-0.1, 0.1), randf_range(-0.1, 0.1))).normalized() #on rajoute un peu d'aléatoire
 	var plane_point = (p1 + p2) / 2.0 #on trouve le centre du plan (sinon par defaut c'est l'origine du monde)
 	var plane = Plane(plane_normal, plane_point)
 	
@@ -79,8 +80,8 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 	var velocity = parent_body.linear_velocity if parent_body is RigidBody3D else Vector3.ZERO
 	var trans = mesh_instance.global_transform
 
-	var mi3d_left = create_piece(mesh_left, trans, velocity, plane.normal * 0.005, true)
-	var mi3d_right = create_piece(mesh_right, trans, velocity, -plane.normal * 0.005, false)
+	var mi3d_left = create_piece(mesh_left, trans, velocity, plane.normal * 0.005, true, plane_point)
+	var mi3d_right = create_piece(mesh_right, trans, velocity, -plane.normal * 0.005, false, plane_point)
 
 	parent_body.queue_free()
 
@@ -136,7 +137,7 @@ func add_poly_to_st(st: SurfaceTool, poly: PackedVector3Array):
 		st.add_vertex(poly[i])
 		st.add_vertex(poly[i+1])
 
-func create_piece(m: Mesh, t: Transform3D, velocity: Vector3, offset: Vector3, is_left: bool) -> MeshInstance3D:
+func create_piece(m: Mesh, t: Transform3D, velocity: Vector3, offset: Vector3, is_left: bool,impact_point: Vector3 = Vector3.ZERO) -> MeshInstance3D:
 	if m.get_surface_count() == 0 or m.get_aabb().size.length() < 0.01:
 		return null
 
@@ -146,7 +147,11 @@ func create_piece(m: Mesh, t: Transform3D, velocity: Vector3, offset: Vector3, i
 
 	new_mesh_inst.mesh = m
 	new_shape.shape = m.create_convex_shape()
-
+	
+	var mesh_size = m.get_aabb().size	#si le morceau est plus petit que 5cm, on crée passs
+	if mesh_size.length() < 0.1: 
+		return null
+		
 	var mat := StandardMaterial3D.new()
 	# Correction Aliasing : textures et ombres
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
@@ -158,6 +163,14 @@ func create_piece(m: Mesh, t: Transform3D, velocity: Vector3, offset: Vector3, i
 	new_body.add_child(new_shape)
 
 	pieces_node.add_child(new_body)
+	new_body.global_transform = t
+	new_body.global_translate(offset)
+	new_body.linear_velocity = velocity
+	if impact_point != Vector3.ZERO:
+		var push_direction = offset.normalized()
+		var force = 2000.0 
+		new_body.apply_impulse(push_direction * force)
+		
 	new_body.global_transform = t
 	new_body.global_translate(offset)
 	new_body.linear_velocity = velocity
@@ -216,13 +229,13 @@ func _ready():
 	var clip_polygon_triangle := [Vector2(0.4, 0.4), Vector2(0.4, 0.0), Vector2(0.8, 0.2)]
 	var polygon_square := [Vector2(0, 0), Vector2(0.67, 0), Vector2(0.67, 0.67), Vector2(0, 0.67)]
 	var clip_square := [Vector2(0.33, 0.33), Vector2(1, 0.33), Vector2(1, 1), Vector2(0.33, 1)]
-	show_points_2d(polygon_crescent, Color.GREEN)
-	show_points_2d(clip_polygon_triangle, Color.YELLOW)
+	#show_points_2d(polygon_crescent, Color.GREEN)
+	#show_points_2d(clip_polygon_triangle, Color.YELLOW)
 	var res := ClipPolygon.clip_polygon_2d(polygon_crescent, clip_polygon_triangle)
 	#show_points_2d(polygon_square, Color.GREEN)
 	#show_points_2d(clip_square, Color.YELLOW)
 	#var res := ClipPolygon.clip_polygon_2d(polygon_square, clip_square)
-	show_points_2d(res, Color.BLACK)
+	#show_points_2d(res, Color.BLACK)
 
 func _on_slice_button_pressed():
 	clean_pieces()
@@ -233,8 +246,8 @@ func _on_slice_button_pressed():
 	aabb_node.mesh.size = aabb.size
 	var voronoi_points: PackedVector3Array = []
 	sample_aabb(voronoi_points, nb_points)
-	show_points(voronoi_points)
-	show_tetrahedralization(voronoi_points)
+	#show_points(voronoi_points)
+	#show_tetrahedralization(voronoi_points)
 	slice_object(original_mesh_instance, voronoi_points, depth)
 	slice_button.disabled = true
 
