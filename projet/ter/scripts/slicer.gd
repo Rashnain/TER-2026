@@ -29,7 +29,7 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 	else:
 		array_mesh = mesh_instance.mesh
 
-	
+
 	if points.size() < 2: return
 	var p1 = points[0]
 	var p2 = points[1]
@@ -37,7 +37,7 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 	plane_normal = (plane_normal + Vector3(randf_range(-0.1, 0.1), randf_range(-0.1, 0.1), randf_range(-0.1, 0.1))).normalized() #on rajoute un peu d'aléatoire
 	var plane_point = (p1 + p2) / 2.0 #on trouve le centre du plan (sinon par defaut c'est l'origine du monde)
 	var plane = Plane(plane_normal, plane_point)
-	
+
 	points.remove_at(0)
 	points.remove_at(0)
 
@@ -123,13 +123,13 @@ func fill_cut_hole(st: SurfaceTool, points: PackedVector3Array, plane: Plane):
 		st.add_vertex(p3)
 	
 	#LA IL FAUT RAJOUTER POUR LES UVs MAIS DUR A OPTI
-			
+
 func finalize_st(st: SurfaceTool) -> Mesh:
 	st.index()
 	st.generate_normals()
 	#st.generate_tangents() #il faut les Uvs pour ça
 	return st.commit()
-	
+
 func add_poly_to_st(st: SurfaceTool, poly: PackedVector3Array):
 	# fan triangulation
 	for i in range(1, poly.size() - 1):
@@ -156,7 +156,6 @@ func create_piece(m: Mesh, t: Transform3D, velocity: Vector3, offset: Vector3, i
 	# Correction Aliasing : textures et ombres
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	mat.albedo_color = Color.PURPLE if is_left else Color.PINK
-	#mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 
 	new_mesh_inst.material_override = mat
 	new_body.add_child(new_mesh_inst)
@@ -279,8 +278,14 @@ func _on_slice_button_pressed():
 func _on_reset_button_pressed():
 	get_tree().reload_current_scene()
 
-func _on_check_button_toggled(toggled_on: bool) -> void:
+func _on_wireframe_toggled(toggled_on: bool) -> void:
 	get_viewport().debug_draw = Viewport.DEBUG_DRAW_WIREFRAME if toggled_on else Viewport.DEBUG_DRAW_DISABLED
+
+func _on_back_face_culling_toggled(toggled_on: bool) -> void:
+	var rigid_bodies: Array[Node] = pieces_node.get_children()
+	for rb in rigid_bodies:
+		var mi := rb.get_child(0)
+		mi.material_override.cull_mode = BaseMaterial3D.CULL_BACK if toggled_on else BaseMaterial3D.CULL_DISABLED
 
 func clean_pieces():
 	for point in points_node.get_children():
