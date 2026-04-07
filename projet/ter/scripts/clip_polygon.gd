@@ -62,17 +62,14 @@ static func clip_polygon_2d(polygon: PackedVector2Array, clipping_polygon: Packe
 	return output
 
 
-static func clip_polygon_3d(triangle: PackedVector3Array, clipping_points: PackedVector3Array, clipping_indices: Array[int]) -> Array[PackedVector3Array]:
-	var results : Array[PackedVector3Array] = [] # [inside, outside]
+static func clip_polygon_3d(triangle: PackedVector3Array, clipping_points: PackedVector3Array, clipping_indices: Array[int]) -> Array:
+	var results : Array = [[], []] # [inside, [outsides...]]
 
 	var triangle_count := clipping_indices.size() / 3;
 
 	var input := triangle.duplicate()
-	var output := triangle.duplicate()
-	output.clear()
-
-	#results.append(input)
-	#results.append(output)
+	var output: PackedVector3Array = []
+	var outside: PackedVector3Array = []
 
 	for i in triangle_count:
 		var a := clipping_indices[i * 3]
@@ -98,6 +95,7 @@ static func clip_polygon_3d(triangle: PackedVector3Array, clipping_points: Packe
 					var intersection_point := ray_plane_intersection(clipping_points[a], normal, current_point, prev_point)
 					print(intersection_point)
 					output.append(intersection_point)
+					outside.append(intersection_point)
 				output.append(current_point)
 			else:
 				print("%d: %f %f %f is outside" % [y, current_point.x, current_point.y, current_point.z])
@@ -106,10 +104,16 @@ static func clip_polygon_3d(triangle: PackedVector3Array, clipping_points: Packe
 					var intersection_point := ray_plane_intersection(clipping_points[a], normal, prev_point, current_point)
 					print(intersection_point)
 					output.append(intersection_point)
+					outside.append(intersection_point)
+				outside.append(current_point)
 
 		input = output.duplicate()
 		output.clear()
 
-	results.append(input)
+		if len(outside) > 0:
+			results[1].append(outside.duplicate())
+		outside.clear()
+
+	results[0] = input
 
 	return results

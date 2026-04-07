@@ -248,13 +248,19 @@ func _ready():
 	#var res := ClipPolygon.clip_polygon_2d(polygon_square, clip_square)
 	#show_points_2d(res, Color.BLACK)
 
-	var triangle := [Vector3(0.75, 0.25, 0.75), Vector3(0, 0.67, 0), Vector3(0.33, 0.5, -0.5)]
+	var triangle := [Vector3(1.75, 0.25, 1.75), Vector3(0, 0.67, 0), Vector3(0.33, 0.5, -0.5)]
 	var clip_tetrahedron := [Vector3(1, 0, 0), Vector3(0, 0, 1), Vector3(1, 0, 1), Vector3(0.67, 1, 0.67)]
 	var clip_indices : Array[int] = [0, 3, 1, 1, 3, 2, 2, 3, 0, 0, 1, 2]
 	show_points_3d(triangle, Color.GREEN)
 	show_points_3d(clip_tetrahedron, Color.YELLOW)
 	var res := ClipPolygon.clip_polygon_3d(triangle, clip_tetrahedron, clip_indices)
 	show_points_3d(res[0], Color.BLACK)
+	print(len(res[1]))
+	print(res[1])
+	#show_points_3d(res[1][0], Color.WHITE)
+	for i in range(len(res[1])):
+		show_points_3d(res[1][i], Color.WHITE / (i+1))
+	print(res[1])
 
 func _on_slice_button_pressed():
 	clean_pieces()
