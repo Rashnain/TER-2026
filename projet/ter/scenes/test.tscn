@@ -10,9 +10,9 @@ size = Vector3(5, 0, 5)
 [sub_resource type="PlaneMesh" id="PlaneMesh_errlg"]
 size = Vector2(5, 5)
 
-[sub_resource type="SphereShape3D" id="SphereShape3D_errlg"]
-
 [sub_resource type="SphereMesh" id="SphereMesh_bl13t"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_errlg"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bl13t"]
 transparency = 1
@@ -59,11 +59,11 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
 [node name="RigidBody3D" type="RigidBody3D" parent="pieces" unique_id=417707697]
 transform = Transform3D(0.9861093, 0.16609757, 0, -0.16609757, 0.9861093, 0, 0, 0, 1, 0, 0, 0)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="pieces/RigidBody3D" unique_id=292209534]
-shape = SubResource("SphereShape3D_errlg")
-
 [node name="MeshInstance3D" type="MeshInstance3D" parent="pieces/RigidBody3D" unique_id=578243330]
 mesh = SubResource("SphereMesh_bl13t")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="pieces/RigidBody3D" unique_id=292209534]
+shape = SubResource("SphereShape3D_errlg")
 
 [node name="aabb" type="MeshInstance3D" parent="." unique_id=804332117]
 unique_name_in_owner = true

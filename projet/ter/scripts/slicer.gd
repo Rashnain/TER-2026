@@ -285,7 +285,8 @@ func _on_back_face_culling_toggled(toggled_on: bool) -> void:
 	var rigid_bodies: Array[Node] = pieces_node.get_children()
 	for rb in rigid_bodies:
 		var mi := rb.get_child(0)
-		mi.material_override.cull_mode = BaseMaterial3D.CULL_BACK if toggled_on else BaseMaterial3D.CULL_DISABLED
+		if (mi.material_override):
+			mi.material_override.cull_mode = BaseMaterial3D.CULL_BACK if toggled_on else BaseMaterial3D.CULL_DISABLED
 
 func clean_pieces():
 	for point in points_node.get_children():
