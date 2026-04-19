@@ -11,6 +11,8 @@ size = Vector3(5, 0, 5)
 size = Vector2(5, 5)
 
 [sub_resource type="SphereMesh" id="SphereMesh_bl13t"]
+radial_segments = 16
+rings = 8
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_errlg"]
 
@@ -55,6 +57,8 @@ transform = Transform3D(1, 0, 0, 0, 0.8706821, 0.4918462, 0, -0.4918462, 0.87068
 [node name="pieces" type="Node3D" parent="." unique_id=276558277]
 unique_name_in_owner = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+
+[node name="points" type="Node3D" parent="pieces" unique_id=1865095206]
 
 [node name="RigidBody3D" type="RigidBody3D" parent="pieces" unique_id=417707697]
 transform = Transform3D(0.9861093, 0.16609757, 0, -0.16609757, 0.9861093, 0, 0, 0, 1, 0, 0, 0)
@@ -128,6 +132,17 @@ min_value = 1.0
 max_value = 50.0
 value = 2.0
 
+[node name="HBoxContainer5" type="HBoxContainer" parent="CanvasLayer/Control/PanelContainer/VBoxContainer" unique_id=305358778]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer5" unique_id=1406099935]
+layout_mode = 2
+text = "Use planes"
+
+[node name="UsePlanesButton" type="CheckButton" parent="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer5" unique_id=1181324305]
+unique_name_in_owner = true
+layout_mode = 2
+
 [node name="HBoxContainer3" type="HBoxContainer" parent="CanvasLayer/Control/PanelContainer/VBoxContainer" unique_id=1092337495]
 layout_mode = 2
 
@@ -159,6 +174,7 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Reset"
 
+[connection signal="toggled" from="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer5/UsePlanesButton" to="." method="_on_use_planes_toggled"]
 [connection signal="toggled" from="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer3/CheckButton" to="." method="_on_wireframe_toggled"]
 [connection signal="toggled" from="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer4/CheckButton" to="." method="_on_back_face_culling_toggled"]
 [connection signal="pressed" from="CanvasLayer/Control/PanelContainer/VBoxContainer/SliceButton" to="." method="_on_slice_button_pressed"]

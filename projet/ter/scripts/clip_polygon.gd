@@ -75,11 +75,11 @@ static func clip_polygon_3d(triangle: PackedVector3Array, clipping_points: Packe
 		var a := clipping_indices[i * 3]
 		var b := clipping_indices[i * 3 + 1]
 		var c := clipping_indices[i * 3 + 2]
-		print(a, " ", b, " ", c)
+		#print(a, " ", b, " ", c)
 		var ab := clipping_points[b] - clipping_points[a]
 		var ac := clipping_points[c] - clipping_points[a]
 		var normal := ac.cross(ab).normalized()
-		print(normal)
+		#print(normal)
 
 		for y in range(len(input)):
 			var current_point := input[y]
@@ -89,20 +89,20 @@ static func clip_polygon_3d(triangle: PackedVector3Array, clipping_points: Packe
 			var prev_inside := (clipping_points[a] - prev_point).dot(normal)
 
 			if current_inside >= 0:
-				print("%d: %f %f %f is inside" % [y, current_point.x, current_point.y, current_point.z])
+				#print("%d: %f %f %f is inside" % [y, current_point.x, current_point.y, current_point.z])
 				if not prev_inside >= 0:
-					print("prev outside")
+					#print("prev outside")
 					var intersection_point := ray_plane_intersection(clipping_points[a], normal, current_point, prev_point)
-					print(intersection_point)
+					#print(intersection_point)
 					output.append(intersection_point)
 					outside.append(intersection_point)
 				output.append(current_point)
 			else:
-				print("%d: %f %f %f is outside" % [y, current_point.x, current_point.y, current_point.z])
+				#print("%d: %f %f %f is outside" % [y, current_point.x, current_point.y, current_point.z])
 				if prev_inside >= 0:
-					print("prev inside")
+					#print("prev inside")
 					var intersection_point := ray_plane_intersection(clipping_points[a], normal, prev_point, current_point)
-					print(intersection_point)
+					#print(intersection_point)
 					output.append(intersection_point)
 					outside.append(intersection_point)
 				outside.append(current_point)

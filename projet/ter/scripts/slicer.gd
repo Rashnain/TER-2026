@@ -3,6 +3,7 @@ extends Node3D
 var aabb: AABB
 @onready var aabb_node: MeshInstance3D = %aabb
 @onready var points_node: Node3D = %points
+@onready var points_node2: Node3D = %pieces/points
 @onready var base_point: MeshInstance3D = %base_point
 @onready var pieces_node: Node3D = %pieces
 @onready var mesh_to_cut: RigidBody3D = %pieces/RigidBody3D
@@ -11,17 +12,18 @@ var aabb: AABB
 @onready var reset_button: Button = %ResetButton
 @onready var points_spin: SpinBox = %PointsSpinBox
 @onready var depth_spin: SpinBox = %DepthSpinBox
+@onready var use_planes_button: CheckButton = %UsePlanesButton
 
 var original_mesh_instance: MeshInstance3D
 var voronoi_fracture: VoronoiFracture
 var tetrahedralization_debug_mesh: Node3D
 var voronoi_diagram_debug_mesh: Node3D
+var use_planes: bool
 
 func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, depth: int):
 	if depth <= 0 or mesh_instance == null:
 		return
 
-	# 1. Prepare the Initial Mesh Data
 	var array_mesh: ArrayMesh
 	if mesh_instance.mesh is PrimitiveMesh:
 		array_mesh = ArrayMesh.new()
@@ -33,7 +35,7 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 	if points.size() < 2: return
 	var p1 = points[0]
 	var p2 = points[1]
-	var plane_normal = (p1 - p2).normalized()	#on trouve la normale au plan
+	var plane_normal = (p1 - p2).normalized()
 	plane_normal = (plane_normal + Vector3(randf_range(-0.1, 0.1), randf_range(-0.1, 0.1), randf_range(-0.1, 0.1))).normalized() #on rajoute un peu d'aléatoire
 	var plane_point = (p1 + p2) / 2.0 #on trouve le centre du plan (sinon par defaut c'est l'origine du monde)
 	var plane = Plane(plane_normal, plane_point)
@@ -57,19 +59,38 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 		var v3 := mdt.get_vertex(mdt.get_face_vertex(i, 2))
 		var triangle := PackedVector3Array([v1, v2, v3])
 
-		var poly_left := Geometry3D.clip_polygon(triangle, plane)
-		var poly_right := Geometry3D.clip_polygon(triangle, -plane)
+		var poly_left
+		var poly_right
+		if use_planes:
+			poly_left = Geometry3D.clip_polygon(triangle, plane)
+			poly_right = Geometry3D.clip_polygon(triangle, -plane)
+		else:
+			var clip_tetrahedron := [Vector3(-2, 0, -2), Vector3(-1, 0, 1), Vector3(1, 0, 1), Vector3(0.67, 1, 0.67)]
+			var clip_indices : Array[int] = [0, 3, 1, 1, 3, 2, 2, 3, 0, 0, 1, 2]
+			show_points_3d(triangle, Color.GREEN, points_node2)
+			show_points_3d(clip_tetrahedron, Color.YELLOW, points_node2)
+			var res := ClipPolygon.clip_polygon_3d(triangle, clip_tetrahedron, clip_indices)
+			poly_left = res[0]
+			show_points_3d(poly_left, Color.BLACK, points_node2)
+			poly_right = res[1]
+			for y in range(len(poly_right)):
+				show_points_3d(poly_right[y], Color.WHITE / (y+1), points_node2)
 
 		if poly_left.size() >= 3:
 			add_poly_to_st(st_left, poly_left)
-			for p in poly_left:
-				if abs(plane.distance_to(p)) < 0.001:
-					intersection_points.append(p)
-					
-		if poly_right.size() >= 3:
-			add_poly_to_st(st_right, poly_right)
+			if use_planes:
+				for p in poly_left:
+					if abs(plane.distance_to(p)) < 0.001:
+						intersection_points.append(p)
 
-	if intersection_points.size() >= 3:
+		if use_planes:
+			if poly_right.size() >= 3:
+				add_poly_to_st(st_right, poly_right)
+		else:
+			for piece in poly_right:
+				add_poly_to_st(st_right, piece)
+
+	if use_planes && intersection_points.size() >= 3:
 		fill_cut_hole(st_left, intersection_points, plane)
 		fill_cut_hole(st_right, intersection_points, -plane)
 
@@ -83,11 +104,12 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 	var mi3d_left = create_piece(mesh_left, trans, velocity, plane.normal * 0.005, true, plane_point)
 	var mi3d_right = create_piece(mesh_right, trans, velocity, -plane.normal * 0.005, false, plane_point)
 
-	parent_body.queue_free()
+	if use_planes:
+		parent_body.queue_free()
 
-	if points.size() >= 2:
-		if mi3d_left: slice_object(mi3d_left, points.duplicate(), depth - 1)
-		if mi3d_right: slice_object(mi3d_right, points.duplicate(), depth - 1)
+		if points.size() >= 2:
+			if mi3d_left: slice_object(mi3d_left, points.duplicate(), depth - 1)
+			if mi3d_right: slice_object(mi3d_right, points.duplicate(), depth - 1)
 
 func fill_cut_hole(st: SurfaceTool, points: PackedVector3Array, plane: Plane):
 	if points.size() < 3: return
@@ -147,11 +169,11 @@ func create_piece(m: Mesh, t: Transform3D, velocity: Vector3, offset: Vector3, i
 
 	new_mesh_inst.mesh = m
 	new_shape.shape = m.create_convex_shape()
-	
+
 	var mesh_size = m.get_aabb().size	#si le morceau est plus petit que 5cm, on crée passs
 	if mesh_size.length() < 0.1: 
 		return null
-		
+
 	var mat := StandardMaterial3D.new()
 	# Correction Aliasing : textures et ombres
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
@@ -165,11 +187,11 @@ func create_piece(m: Mesh, t: Transform3D, velocity: Vector3, offset: Vector3, i
 	new_body.global_transform = t
 	new_body.global_translate(offset)
 	new_body.linear_velocity = velocity
-	if impact_point != Vector3.ZERO:
+	if use_planes && impact_point != Vector3.ZERO:
 		var push_direction = offset.normalized()
 		var force = 2000.0 
 		new_body.apply_impulse(push_direction * force)
-		
+
 	new_body.global_transform = t
 	new_body.global_translate(offset)
 	new_body.linear_velocity = velocity
@@ -197,9 +219,9 @@ func show_points_2d(points: PackedVector2Array, color: Color):
 	var points_3d : PackedVector3Array = []
 	for point in points:
 		points_3d.append(Vector3(point.x, 0, point.y))
-	show_points_3d(points_3d, color)
+	show_points_3d(points_3d, color, points_node)
 
-func show_points_3d(points: PackedVector3Array, color: Color):
+func show_points_3d(points: PackedVector3Array, color: Color, node: Node):
 	for point in points:
 		var new_point := MeshInstance3D.new()
 		new_point.mesh = PointMesh.new()
@@ -207,7 +229,7 @@ func show_points_3d(points: PackedVector3Array, color: Color):
 		new_point.position = point
 		new_point.mesh.material = base_point.mesh.material.duplicate()
 		new_point.mesh.material.albedo_color = color
-		points_node.add_child(new_point)
+		node.add_child(new_point)
 
 func show_tetrahedralization(points: PackedVector3Array):
 	voronoi_fracture.bowyer_watson(points)
@@ -232,6 +254,7 @@ func _ready():
 	original_mesh_instance = mesh_to_cut.get_node("MeshInstance3D")
 
 	aabb_node.rotate(Vector3.UP, PI/2) # debug pour ce qu'il y a en dessous
+	use_planes = use_planes_button.button_pressed
 
 	#var polygon_crescent := [Vector2(0.6, 1), Vector2(0.2, 1), Vector2(0.0, 0.6), Vector2(0.2, 0.2), Vector2(0.6, 0.2), Vector2(0.4, 0.6)]
 	#var clip_polygon_triangle := [Vector2(0.4, 0.4), Vector2(0.4, 0.0), Vector2(0.8, 0.2)]
@@ -247,19 +270,22 @@ func _ready():
 	#var res := ClipPolygon.clip_polygon_2d(polygon_square, clip_square)
 	#show_points_2d(res, Color.BLACK)
 
-	var triangle := [Vector3(1.75, 0.25, 1.75), Vector3(0, 0.67, 0), Vector3(0.33, 0.5, -0.5)]
-	var clip_tetrahedron := [Vector3(1, 0, 0), Vector3(0, 0, 1), Vector3(1, 0, 1), Vector3(0.67, 1, 0.67)]
-	var clip_indices : Array[int] = [0, 3, 1, 1, 3, 2, 2, 3, 0, 0, 1, 2]
-	show_points_3d(triangle, Color.GREEN)
-	show_points_3d(clip_tetrahedron, Color.YELLOW)
-	var res := ClipPolygon.clip_polygon_3d(triangle, clip_tetrahedron, clip_indices)
-	show_points_3d(res[0], Color.BLACK)
-	print(len(res[1]))
-	print(res[1])
-	#show_points_3d(res[1][0], Color.WHITE)
-	for i in range(len(res[1])):
-		show_points_3d(res[1][i], Color.WHITE / (i+1))
-	print(res[1])
+	#var triangle := [Vector3(1.75, 0.25, 1.75), Vector3(0, 0.67, 0), Vector3(0.33, 0.5, -0.5)]
+	#var clip_tetrahedron := [Vector3(1, 0, 0), Vector3(0, 0, 1), Vector3(1, 0, 1), Vector3(0.67, 1, 0.67)]
+	#var clip_indices : Array[int] = [0, 3, 1, 1, 3, 2, 2, 3, 0, 0, 1, 2]
+	#show_points_3d(triangle, Color.GREEN, points_node)
+	#show_points_3d(clip_tetrahedron, Color.YELLOW, points_node)
+	#var res := ClipPolygon.clip_polygon_3d(triangle, clip_tetrahedron, clip_indices)
+	#show_points_3d(res[0], Color.BLACK, points_node)
+	#print(len(res[1]))
+	#print(res[1])
+	##show_points_3d(res[1][0], Color.WHITE)
+	#for i in range(len(res[1])):
+		#show_points_3d(res[1][i], Color.WHITE / (i+1), points_node)
+	#print(res[1])
+
+func _on_use_planes_toggled(toggled_on: bool) -> void:
+	use_planes = toggled_on
 
 func _on_slice_button_pressed():
 	clean_pieces()
@@ -284,12 +310,14 @@ func _on_wireframe_toggled(toggled_on: bool) -> void:
 func _on_back_face_culling_toggled(toggled_on: bool) -> void:
 	var rigid_bodies: Array[Node] = pieces_node.get_children()
 	for rb in rigid_bodies:
+		if (rb.get_child_count() == 0): continue
 		var mi := rb.get_child(0)
-		if (mi.material_override):
+		if mi.material_override:
 			mi.material_override.cull_mode = BaseMaterial3D.CULL_BACK if toggled_on else BaseMaterial3D.CULL_DISABLED
 
 func clean_pieces():
 	for point in points_node.get_children():
 		point.queue_free()
 	for piece in pieces_node.get_children():
-		piece.queue_free()
+		if piece.name != "points":
+			piece.queue_free()
