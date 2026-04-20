@@ -20,6 +20,16 @@ var tetrahedralization_debug_mesh: Node3D
 var voronoi_diagram_debug_mesh: Node3D
 var use_planes: bool
 
+
+
+
+
+
+var impact_point: Vector3 = Vector3.ZERO
+var impact_point_set: bool = false
+var use_impact_distribution: bool = false
+var impact_falloff: float = 0.0  # Pour gerer la dispersion des points (à 0 c'est uniforme, à 1 c'est quasi collé a l'impact)
+
 func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, depth: int):
 	if depth <= 0 or mesh_instance == null:
 		return
@@ -60,7 +70,7 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 		var triangle := PackedVector3Array([v1, v2, v3])
 
 		var poly_left
-		var poly_right
+		var poly_right	
 		if use_planes:
 			poly_left = Geometry3D.clip_polygon(triangle, plane)
 			poly_right = Geometry3D.clip_polygon(triangle, -plane)
@@ -208,12 +218,60 @@ func sample_aabb(points: PackedVector3Array, amount: int):
 		var z := randf()
 		points.append(Vector3(start.x + size.x * x, start.y + size.y * y, start.z + size.z * z))
 
+# sample points avec la densité basé sur le point d'impact
+func sample_aabb_with_impact(points: PackedVector3Array, amount: int, impact: Vector3, falloff: float):
+	var start: Vector3 = aabb.position
+	var size: Vector3 = aabb.size
+	var min_bound: Vector3 = start
+	var max_bound: Vector3 = start + size
+	var effective_impact: Vector3 = _clamp_point_to_aabb(impact, AABB(start, size))
+	# Le rayon caractéristique : moitié de la plus petite dimension de l'AABB
+	var characteristic_radius: float = min(size.x, size.y, size.z) * 0.5
+	var near_ratio: float = lerp(0.2, 0.9, falloff)  # More extreme: 20% to 90% near impact
+	var mid_ratio: float = lerp(0.3, 0.05, falloff)  # Reduced mid at high falloff
+	var near_radius: float = characteristic_radius * lerp(0.4, 0.3, falloff)  # Tighter near radius at high falloff
+	var mid_radius: float = characteristic_radius * lerp(0.9, 1.2, falloff)  # Larger mid radius
+		
+	for i in amount:
+		var point: Vector3
+		var pick: float = randf()
+		if pick < near_ratio:
+			point = _random_point_near_impact(effective_impact, near_radius, min_bound, max_bound)
+		elif pick < near_ratio + mid_ratio:
+			point = _random_point_near_impact(effective_impact, mid_radius, min_bound, max_bound)
+		else:
+			point = Vector3(start.x + randf() * size.x, start.y + randf() * size.y, start.z + randf() * size.z)
+		points.append(point)
+	
+
+func _random_point_near_impact(impact: Vector3, radius: float, min_bound: Vector3, max_bound: Vector3) -> Vector3:
+	var dir: Vector3 = Vector3.ZERO
+	for attempt in range(10):
+		dir = Vector3(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0), randf_range(-1.0, 1.0))
+		if dir == Vector3.ZERO:
+			dir = Vector3(1, 0, 0)
+		dir = dir.normalized() * randf() * radius
+		var point: Vector3 = impact + dir
+		if point.x >= min_bound.x and point.x <= max_bound.x and point.y >= min_bound.y and point.y <= max_bound.y and point.z >= min_bound.z and point.z <= max_bound.z:
+			return point
+	# fallback si trop de tentatives, utilise un point proche limitant la longueur du vecteur
+	var fallback_dir: Vector3 = dir.limit_length(radius * 0.6)
+	var fallback: Vector3 = impact + fallback_dir
+	return Vector3(clamp(fallback.x, min_bound.x, max_bound.x), clamp(fallback.y, min_bound.y, max_bound.y), clamp(fallback.z, min_bound.z, max_bound.z))
+
 func show_points(points: PackedVector3Array):
 	for point in points:
 		var new_point := base_point.duplicate()
 		new_point.position = point
 		new_point.visible = true
 		points_node.add_child(new_point)
+
+func _clamp_point_to_aabb(point: Vector3, bounds: AABB) -> Vector3:
+	return Vector3(
+		clamp(point.x, bounds.position.x, bounds.position.x + bounds.size.x),
+		clamp(point.y, bounds.position.y, bounds.position.y + bounds.size.y),
+		clamp(point.z, bounds.position.z, bounds.position.z + bounds.size.z)
+	)
 
 func show_points_2d(points: PackedVector2Array, color: Color):
 	var points_3d : PackedVector3Array = []
@@ -230,6 +288,62 @@ func show_points_3d(points: PackedVector3Array, color: Color, node: Node):
 		new_point.mesh.material = base_point.mesh.material.duplicate()
 		new_point.mesh.material.albedo_color = color
 		node.add_child(new_point)
+
+
+
+
+
+
+# visualise les points avec gradient de couleur basé sur la distance à l'impact
+func show_points_3d_with_impact(points: PackedVector3Array, impact: Vector3, node: Node):
+	var max_distance: float = 0.0
+	for point in points:
+		var dist: float = point.distance_to(impact)
+		if dist > max_distance:
+			max_distance = dist
+	
+	if max_distance == 0.0:
+		max_distance = 1.0
+			
+	for point in points:
+		var new_point := MeshInstance3D.new()
+		new_point.mesh = PointMesh.new()
+		new_point.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		new_point.position = point
+		new_point.mesh.material = base_point.mesh.material.duplicate()
+		
+		var distance: float = point.distance_to(impact)
+		var ratio: float = distance / max_distance
+		
+		var point_color: Color
+		if ratio < 0.33:
+			# rouge à orange
+			point_color = Color.RED.lerp(Color(1.0, 0.5, 0.0), ratio * 3.0)
+		elif ratio < 0.66:
+			# orange à jaune
+			point_color = Color(1.0, 0.5, 0.0).lerp(Color.YELLOW, (ratio - 0.33) * 3.0)
+		else:
+			# jaune à vert
+			point_color = Color.YELLOW.lerp(Color.GREEN, (ratio - 0.66) * 3.0)
+		
+		new_point.mesh.material.albedo_color = point_color
+		node.add_child(new_point)
+	
+	var impact_mesh := MeshInstance3D.new()
+	impact_mesh.mesh = PointMesh.new()
+	impact_mesh.position = impact
+	impact_mesh.mesh.material = base_point.mesh.material.duplicate()
+	impact_mesh.mesh.material.albedo_color = Color.MAGENTA
+	node.add_child(impact_mesh)
+	
+
+
+
+
+
+
+
+
 
 func show_tetrahedralization(points: PackedVector3Array):
 	voronoi_fracture.bowyer_watson(points)
@@ -253,8 +367,31 @@ func _ready():
 	add_child(voronoi_fracture)
 	original_mesh_instance = mesh_to_cut.get_node("MeshInstance3D")
 
-	aabb_node.rotate(Vector3.UP, PI/2) # debug pour ce qu'il y a en dessous
+	aabb = original_mesh_instance.get_aabb()
+	aabb.abs()
+	aabb_node.mesh.size = aabb.size
+
+	aabb_node.rotate(Vector3.UP, PI/2) 
 	use_planes = use_planes_button.button_pressed
+
+
+
+
+
+
+
+
+	set_impact_at_position(Vector3(0, 0.5, 0.35), impact_falloff)  # on défini point d'impact et falloff
+
+
+
+
+
+
+
+
+
+
 
 	#var polygon_crescent := [Vector2(0.6, 1), Vector2(0.2, 1), Vector2(0.0, 0.6), Vector2(0.2, 0.2), Vector2(0.6, 0.2), Vector2(0.4, 0.6)]
 	#var clip_polygon_triangle := [Vector2(0.4, 0.4), Vector2(0.4, 0.0), Vector2(0.8, 0.2)]
@@ -287,16 +424,46 @@ func _ready():
 func _on_use_planes_toggled(toggled_on: bool) -> void:
 	use_planes = toggled_on
 
+
+
+# Active/désactive la distribution avec impact et définit le point
+func set_impact_distribution(enabled: bool, point: Vector3 = Vector3.ZERO, falloff: float = 0.5):
+	use_impact_distribution = enabled
+	impact_point = point
+	impact_point_set = enabled
+	impact_falloff = clamp(falloff, 0.0, 1.0)
+
+# Définit le point d'impact au centre du mesh
+func set_impact_at_center():
+	var center = aabb.get_center()
+	set_impact_distribution(true, center, impact_falloff)
+
+# Définit le point d'impact à une position spécifique
+func set_impact_at_position(position: Vector3, falloff: float = 0.5):
+	set_impact_distribution(true, position, falloff)
+
+
+
+
+
+
+
 func _on_slice_button_pressed():
 	clean_pieces()
 	var nb_points = int(points_spin.value)
 	var depth = int(depth_spin.value)
-	aabb = original_mesh_instance.get_aabb()
-	aabb.abs()
-	aabb_node.mesh.size = aabb.size
 	var voronoi_points: PackedVector3Array = []
-	sample_aabb(voronoi_points, nb_points)
-	#show_points(voronoi_points)
+	
+	if use_impact_distribution and not impact_point_set:
+		impact_point = aabb.get_center()
+		impact_point_set = true
+	if use_impact_distribution and impact_point_set:
+		sample_aabb_with_impact(voronoi_points, nb_points, impact_point, impact_falloff)
+		show_points_3d_with_impact(voronoi_points, impact_point, points_node)
+	else:
+		sample_aabb(voronoi_points, nb_points)
+		show_points(voronoi_points)
+		
 	#show_tetrahedralization(voronoi_points)
 	slice_object(original_mesh_instance, voronoi_points, depth)
 	slice_button.disabled = true
