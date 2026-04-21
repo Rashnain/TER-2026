@@ -19,6 +19,8 @@ var voronoi_fracture: VoronoiFracture
 var tetrahedralization_debug_mesh: Node3D
 var voronoi_diagram_debug_mesh: Node3D
 var use_planes: bool
+var clip_tetrahedron: PackedVector3Array
+var clip_indices : Array[int]
 
 
 
@@ -41,20 +43,19 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 	else:
 		array_mesh = mesh_instance.mesh
 
-
 	if points.size() < 2: return
 	var p1 = points[0]
 	var p2 = points[1]
 	var plane_normal = (p1 - p2).normalized()
 	plane_normal = (plane_normal + Vector3(randf_range(-0.1, 0.1), randf_range(-0.1, 0.1), randf_range(-0.1, 0.1))).normalized() #on rajoute un peu d'aléatoire
 	var plane_point = (p1 + p2) / 2.0 #on trouve le centre du plan (sinon par defaut c'est l'origine du monde)
-	var plane = Plane(plane_normal, plane_point)
+	var plane := Plane(plane_normal, plane_point)
 
 	points.remove_at(0)
 	points.remove_at(0)
 
-	var st_left = SurfaceTool.new()
-	var st_right = SurfaceTool.new()
+	var st_left := SurfaceTool.new()
+	var st_right := SurfaceTool.new()
 	st_left.begin(Mesh.PRIMITIVE_TRIANGLES)
 	st_right.begin(Mesh.PRIMITIVE_TRIANGLES)
 
@@ -75,9 +76,6 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 			poly_left = Geometry3D.clip_polygon(triangle, plane)
 			poly_right = Geometry3D.clip_polygon(triangle, -plane)
 		else:
-			var clip_tetrahedron := [Vector3(-2, 0, -2), Vector3(-1, 0, 1), Vector3(1, 0, 1), Vector3(0.67, 1, 0.67)]
-			var clip_indices : Array[int] = [0, 3, 1, 1, 3, 2, 2, 3, 0, 0, 1, 2]
-			show_points_3d(triangle, Color.GREEN, points_node2)
 			show_points_3d(clip_tetrahedron, Color.YELLOW, points_node2)
 			var res := ClipPolygon.clip_polygon_3d(triangle, clip_tetrahedron, clip_indices)
 			poly_left = res[0]
@@ -103,6 +101,37 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 	if use_planes && intersection_points.size() >= 3:
 		fill_cut_hole(st_left, intersection_points, plane)
 		fill_cut_hole(st_right, intersection_points, -plane)
+	else:
+		for i in range(0, len(clip_indices), 3):
+			#i = 2 * 3
+			var triangle := [clip_tetrahedron[clip_indices[i]], clip_tetrahedron[clip_indices[i + 1]], clip_tetrahedron[clip_indices[i + 2]]]
+			var ab = triangle[1] - triangle[0]
+			var ac = triangle[2] - triangle[0]
+			var normal = ac.cross(ab).normalized()
+			#var normal = ab.cross(ac).normalized()
+			#print("normal = ", normal)
+			var plane2 = Plane(normal, triangle[0])
+			intersection_points.clear()
+			var mdt2 = MeshDataTool.new()
+			var array = st_left.commit_to_arrays()
+			var arr_mesh = ArrayMesh.new()
+			arr_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, array)
+			mdt2.create_from_surface(arr_mesh, 0)
+			#var mean = (triangle[2] + triangle[1] + triangle[2]) / 3
+			#print("points = ", mdt2.get_vertex_count())
+			# TODO dé-dupliquer les points (pour améliorer les perfs)
+			for p in range(mdt2.get_vertex_count()):
+				#print(ClipPolygon.distance_to_triangle(mdt2.get_vertex(p), triangle))
+				#if abs(Plane(normal, mean).distance_to(mdt2.get_vertex(p))) < 0.001 \
+					#&& ClipPolygon.distance_to_triangle(mdt2.get_vertex(p), triangle) < 0.001:
+				if ClipPolygon.distance_to_triangle(mdt2.get_vertex(p), triangle) < 0.001:
+					intersection_points.append(mdt2.get_vertex(p))
+			print("intersection_points.size() = ", intersection_points.size())
+			if intersection_points.size() >= 3:
+				show_points_3d(intersection_points, Color.RED, points_node2)
+				fill_cut_hole(st_left, intersection_points, plane2)
+				fill_cut_hole(st_right, intersection_points, -plane2)
+			#break
 
 	var mesh_left = finalize_st(st_left)
 	var mesh_right = finalize_st(st_right)
@@ -373,13 +402,10 @@ func _ready():
 
 	aabb_node.rotate(Vector3.UP, PI/2) 
 	use_planes = use_planes_button.button_pressed
-
-
-
-
-
-
-
+	#clip_tetrahedron = [Vector3(0, 0, -2), Vector3(-2, 0, 0), Vector3(0, 0, 2), Vector3(0, 2, 0)]
+	#clip_tetrahedron = [Vector3(0.5, 0, -2), Vector3(-2, 0, 0), Vector3(0, 0, 2), Vector3(0, 2, 0)]
+	clip_tetrahedron = [Vector3(0.75, 0, -2), Vector3(-2, 0.5, 0), Vector3(0, 0, 2), Vector3(0, 2, 0)]
+	clip_indices = [0, 3, 1, 1, 3, 2, 2, 3, 0, 0, 1, 2]
 
 	set_impact_at_position(Vector3(0, 0.5, 0.35), impact_falloff)  # on défini point d'impact et falloff
 
@@ -389,37 +415,7 @@ func _ready():
 
 
 
-
-
-
-
-	#var polygon_crescent := [Vector2(0.6, 1), Vector2(0.2, 1), Vector2(0.0, 0.6), Vector2(0.2, 0.2), Vector2(0.6, 0.2), Vector2(0.4, 0.6)]
-	#var clip_polygon_triangle := [Vector2(0.4, 0.4), Vector2(0.4, 0.0), Vector2(0.8, 0.2)]
-	#show_points_2d(polygon_crescent, Color.GREEN)
-	#show_points_2d(clip_polygon_triangle, Color.YELLOW)
-	#var res := ClipPolygon.clip_polygon_2d(polygon_crescent, clip_polygon_triangle)
-	#show_points_2d(res, Color.BLACK)
-
-	#var polygon_square := [Vector2(0, 0), Vector2(0.67, 0), Vector2(0.67, 0.67), Vector2(0, 0.67)]
-	#var clip_square := [Vector2(0.33, 0.33), Vector2(1, 0.33), Vector2(1, 1), Vector2(0.33, 1)]
-	#show_points_2d(polygon_square, Color.GREEN)
-	#show_points_2d(clip_square, Color.YELLOW)
-	#var res := ClipPolygon.clip_polygon_2d(polygon_square, clip_square)
-	#show_points_2d(res, Color.BLACK)
-
-	#var triangle := [Vector3(1.75, 0.25, 1.75), Vector3(0, 0.67, 0), Vector3(0.33, 0.5, -0.5)]
-	#var clip_tetrahedron := [Vector3(1, 0, 0), Vector3(0, 0, 1), Vector3(1, 0, 1), Vector3(0.67, 1, 0.67)]
-	#var clip_indices : Array[int] = [0, 3, 1, 1, 3, 2, 2, 3, 0, 0, 1, 2]
-	#show_points_3d(triangle, Color.GREEN, points_node)
-	#show_points_3d(clip_tetrahedron, Color.YELLOW, points_node)
-	#var res := ClipPolygon.clip_polygon_3d(triangle, clip_tetrahedron, clip_indices)
-	#show_points_3d(res[0], Color.BLACK, points_node)
-	#print(len(res[1]))
-	#print(res[1])
-	##show_points_3d(res[1][0], Color.WHITE)
-	#for i in range(len(res[1])):
-		#show_points_3d(res[1][i], Color.WHITE / (i+1), points_node)
-	#print(res[1])
+	print("dist(0, 1, 0) = ", dist) # 1
 
 func _on_use_planes_toggled(toggled_on: bool) -> void:
 	use_planes = toggled_on

@@ -117,3 +117,52 @@ static func clip_polygon_3d(triangle: PackedVector3Array, clipping_points: Packe
 	results[0] = input
 
 	return results
+
+
+static func distance_to_triangle(point: Vector3, triangle: PackedVector3Array) -> float:
+	#print("distance_to_triangle, point=", point)
+	var distances: Array[float] = []
+	for i in range(len(triangle)):
+		var distance = (point - triangle[i]).length()
+		distances.append(distance)
+		#print(distance)
+
+	var ab := triangle[1] - triangle[0]
+	var ac := triangle[2] - triangle[0]
+	var normal_tri := ac.cross(ab).normalized()
+	var dist_to_plane = (point - triangle[0]).dot(normal_tri)
+	distances.append(abs(dist_to_plane))
+
+	var is_inside := true
+	for i in range(len(triangle)):
+		var A := triangle[i]
+		var B := triangle[(i + 1) % len(triangle)]
+		var dir := (B - A).normalized()
+		var AB := (B - A).length()
+		var AM := point - A
+		var AH = max(0, min(dir.dot(AM), AB))
+		var H = A + AH * dir
+		var distance = (H - point).length()
+		distances.append(distance)
+		var normal := dir.rotated(normal_tri, PI/4)
+		#print(distance)
+		if (point - A).dot(normal) > 0:
+			is_inside = false
+
+	var min_dist := distances[min_arr(distances)]
+
+	if is_inside && min_dist < 0.001:
+		#print(0)
+		return 0
+
+	#print(min_dist, " sqrt=", sqrt(min_dist))
+	return min_dist
+
+static func min_arr(array: Array[float]) -> int:
+	var min_val = array[0]
+	var min_idx = 0
+	for i in range(len(array)):
+		if array[i] < min_val:
+			min_val = array[i]
+			min_idx = i
+	return min_idx
