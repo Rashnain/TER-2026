@@ -144,26 +144,26 @@ func insert_point(p: Vector3) -> int:
 					#vd.cells[cell_idx].append(vv_idx)
 	
 	# Edges (dual to Delaunay triangular faces) 
-	var seen_edges : Dictionary = {}
-	for ti in tetrahedra.size():
-		var tetrahedron : Tetrahedron = tetrahedra[ti]
-		if tetrahedron == null:
-			continue
-		var vv0 : int = tetrahedron_to_voronoi_vertex.get(ti, -1)
-		for f in 4:
-			var nbr : Tetrahedron = tetrahedron.neighbours[f]
-			if nbr == null:
-				continue
-			var nbr_idx := tetrahedra.find(nbr)
-			var vv1 : int = tetrahedron_to_voronoi_vertex.get(nbr_idx, -1)
-			if vv0 == -1 or vv1 == -1:
-				continue
-			var key := mini(vv0, vv1) * 1000000 + maxi(vv0, vv1)
-			if not seen_edges.has(key):
-				seen_edges[key] = true
-				vd.edges.append([vv0, vv1])
-	
-	return vd
+	#var seen_edges : Dictionary = {}
+	#for ti in tetrahedra.size():
+		#var tetrahedron : Tetrahedron = tetrahedra[ti]
+		#if tetrahedron == null:
+			#continue
+		#var vv0 : int = tetrahedron_to_voronoi_vertex.get(ti, -1)
+		#for f in 4:
+			#var nbr : Tetrahedron = tetrahedron.neighbours[f]
+			#if nbr == null:
+				#continue
+			#var nbr_idx := tetrahedra.find(nbr)
+			#var vv1 : int = tetrahedron_to_voronoi_vertex.get(nbr_idx, -1)
+			#if vv0 == -1 or vv1 == -1:
+				#continue
+			#var key := mini(vv0, vv1) * 1000000 + maxi(vv0, vv1)
+			#if not seen_edges.has(key):
+				#seen_edges[key] = true
+				#vd.edges.append([vv0, vv1])
+	#
+	#return vd
 
 # ==================================================================================================
 # Initialisation

@@ -1,0 +1,179 @@
+[gd_scene format=3 uid="uid://cs4yw3jfr8grt"]
+
+[ext_resource type="Script" uid="uid://dntncbrw1cmse" path="res://scripts/slicer.gd" id="1_errlg"]
+
+[sub_resource type="Environment" id="Environment_ij1v8"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_bl13t"]
+size = Vector3(5, 0, 5)
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_errlg"]
+size = Vector2(5, 5)
+
+[sub_resource type="BoxMesh" id="BoxMesh_errlg"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_iyx0m"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bl13t"]
+transparency = 1
+albedo_color = Color(0.015686275, 0.7058824, 1, 0.4509804)
+
+[sub_resource type="BoxMesh" id="BoxMesh_iyx0m"]
+material = SubResource("StandardMaterial3D_bl13t")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_errlg"]
+shading_mode = 0
+albedo_color = Color(1, 0, 0, 1)
+use_point_size = true
+point_size = 10.0
+
+[sub_resource type="PointMesh" id="PointMesh_bl13t"]
+material = SubResource("StandardMaterial3D_errlg")
+
+[node name="Node3D" type="Node3D" unique_id=627573708]
+script = ExtResource("1_errlg")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=777051070]
+transform = Transform3D(1, 0, 0, 0, 0.9270072, 0.37504348, 0, -0.37504348, 0.9270072, 0, 2.3889978, 3.3309927)
+shadow_enabled = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=781307562]
+environment = SubResource("Environment_ij1v8")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=672403548]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=1513254403]
+transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0)
+shape = SubResource("BoxShape3D_bl13t")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="StaticBody3D/CollisionShape3D" unique_id=1606852947]
+mesh = SubResource("PlaneMesh_errlg")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=1427404350]
+transform = Transform3D(1, 0, 0, 0, 0.8706821, 0.4918462, 0, -0.4918462, 0.8706821, 0, 2.3660893, 2.4314792)
+
+[node name="pieces" type="Node3D" parent="." unique_id=276558277]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+
+[node name="points" type="Node3D" parent="pieces" unique_id=1865095206]
+
+[node name="RigidBody3D" type="RigidBody3D" parent="pieces" unique_id=417707697]
+transform = Transform3D(0.9861093, 0.16609757, 0, -0.16609757, 0.9861093, 0, 0, 0, 1, 0, 0, 0)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="pieces/RigidBody3D" unique_id=578243330]
+mesh = SubResource("BoxMesh_errlg")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="pieces/RigidBody3D" unique_id=292209534]
+shape = SubResource("BoxShape3D_iyx0m")
+
+[node name="aabb" type="MeshInstance3D" parent="." unique_id=804332117]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 1, 0)
+mesh = SubResource("BoxMesh_iyx0m")
+
+[node name="base_point" type="MeshInstance3D" parent="aabb" unique_id=568941111]
+unique_name_in_owner = true
+visible = false
+cast_shadow = 0
+mesh = SubResource("PointMesh_bl13t")
+
+[node name="points" type="Node3D" parent="aabb" unique_id=1170264140]
+unique_name_in_owner = true
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=2030804686]
+
+[node name="Control" type="Control" parent="CanvasLayer" unique_id=1792937907]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = 50.0
+offset_bottom = 50.0
+
+[node name="PanelContainer" type="PanelContainer" parent="CanvasLayer/Control" unique_id=742879663]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/Control/PanelContainer" unique_id=1195108581]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="CanvasLayer/Control/PanelContainer/VBoxContainer" unique_id=1570792229]
+layout_mode = 2
+text = "Settings"
+
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Control/PanelContainer/VBoxContainer" unique_id=867138524]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer" unique_id=2062356169]
+layout_mode = 2
+text = "Nb Points"
+
+[node name="PointsSpinBox" type="SpinBox" parent="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer" unique_id=1211842885]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 2.0
+value = 50.0
+
+[node name="HBoxContainer2" type="HBoxContainer" parent="CanvasLayer/Control/PanelContainer/VBoxContainer" unique_id=2044941622]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer2" unique_id=929263846]
+layout_mode = 2
+text = "Nb Plans"
+
+[node name="DepthSpinBox" type="SpinBox" parent="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer2" unique_id=1184235946]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 1.0
+max_value = 50.0
+value = 2.0
+
+[node name="HBoxContainer5" type="HBoxContainer" parent="CanvasLayer/Control/PanelContainer/VBoxContainer" unique_id=305358778]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer5" unique_id=1406099935]
+layout_mode = 2
+text = "Use planes"
+
+[node name="UsePlanesButton" type="CheckButton" parent="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer5" unique_id=1181324305]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="HBoxContainer3" type="HBoxContainer" parent="CanvasLayer/Control/PanelContainer/VBoxContainer" unique_id=1092337495]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer3" unique_id=531849862]
+layout_mode = 2
+text = "Wireframe"
+
+[node name="CheckButton" type="CheckButton" parent="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer3" unique_id=1079281868]
+layout_mode = 2
+
+[node name="HBoxContainer4" type="HBoxContainer" parent="CanvasLayer/Control/PanelContainer/VBoxContainer" unique_id=964818473]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer4" unique_id=165880659]
+layout_mode = 2
+text = "Back face culling"
+
+[node name="CheckButton" type="CheckButton" parent="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer4" unique_id=2017432372]
+layout_mode = 2
+button_pressed = true
+
+[node name="SliceButton" type="Button" parent="CanvasLayer/Control/PanelContainer/VBoxContainer" unique_id=1007680607]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Slice"
+
+[node name="ResetButton" type="Button" parent="CanvasLayer/Control/PanelContainer/VBoxContainer" unique_id=874369579]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Reset"
+
+[connection signal="toggled" from="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer5/UsePlanesButton" to="." method="_on_use_planes_toggled"]
+[connection signal="toggled" from="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer3/CheckButton" to="." method="_on_wireframe_toggled"]
+[connection signal="toggled" from="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer4/CheckButton" to="." method="_on_back_face_culling_toggled"]
+[connection signal="pressed" from="CanvasLayer/Control/PanelContainer/VBoxContainer/SliceButton" to="." method="_on_slice_button_pressed"]
+[connection signal="pressed" from="CanvasLayer/Control/PanelContainer/VBoxContainer/ResetButton" to="." method="_on_reset_button_pressed"]

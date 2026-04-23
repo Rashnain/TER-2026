@@ -20,376 +20,13 @@ var tetrahedralization_debug_mesh: Node3D
 var voronoi_diagram_debug_mesh: Node3D
 var use_planes: bool
 var clip_tetrahedron: PackedVector3Array
-var clip_indices : Array[int]
+var clip_indices: Array[int]
 
-
-
-
-
-
-var impact_point: Vector3 = Vector3.ZERO
-var impact_point_set: bool = false
-var use_impact_distribution: bool = false
-var impact_falloff: float = 0.0  # Pour gerer la dispersion des points (à 0 c'est uniforme, à 1 c'est quasi collé a l'impact)
-
-func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, depth: int):
-	if depth <= 0 or mesh_instance == null:
-		return
-
-	var array_mesh: ArrayMesh
-	if mesh_instance.mesh is PrimitiveMesh:
-		array_mesh = ArrayMesh.new()
-		array_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, mesh_instance.mesh.get_mesh_arrays())
-	else:
-		array_mesh = mesh_instance.mesh
-
-	if points.size() < 2: return
-	var p1 = points[0]
-	var p2 = points[1]
-	var plane_normal = (p1 - p2).normalized()
-	plane_normal = (plane_normal + Vector3(randf_range(-0.1, 0.1), randf_range(-0.1, 0.1), randf_range(-0.1, 0.1))).normalized() #on rajoute un peu d'aléatoire
-	var plane_point = (p1 + p2) / 2.0 #on trouve le centre du plan (sinon par defaut c'est l'origine du monde)
-	var plane := Plane(plane_normal, plane_point)
-
-	points.remove_at(0)
-	points.remove_at(0)
-
-	var st_left := SurfaceTool.new()
-	var st_right := SurfaceTool.new()
-	st_left.begin(Mesh.PRIMITIVE_TRIANGLES)
-	st_right.begin(Mesh.PRIMITIVE_TRIANGLES)
-
-	var mdt = MeshDataTool.new()
-	mdt.create_from_surface(array_mesh, 0)
-
-	var intersection_points : PackedVector3Array = []
-
-	for i in range(mdt.get_face_count()):
-		var v1 := mdt.get_vertex(mdt.get_face_vertex(i, 0))
-		var v2 := mdt.get_vertex(mdt.get_face_vertex(i, 1))
-		var v3 := mdt.get_vertex(mdt.get_face_vertex(i, 2))
-		var triangle := PackedVector3Array([v1, v2, v3])
-
-		var poly_left
-		var poly_right	
-		if use_planes:
-			poly_left = Geometry3D.clip_polygon(triangle, plane)
-			poly_right = Geometry3D.clip_polygon(triangle, -plane)
-		else:
-			show_points_3d(clip_tetrahedron, Color.YELLOW, points_node2)
-			var res := ClipPolygon.clip_polygon_3d(triangle, clip_tetrahedron, clip_indices)
-			poly_left = res[0]
-			show_points_3d(poly_left, Color.BLACK, points_node2)
-			poly_right = res[1]
-			for y in range(len(poly_right)):
-				show_points_3d(poly_right[y], Color.WHITE / (y+1), points_node2)
-
-		if poly_left.size() >= 3:
-			add_poly_to_st(st_left, poly_left)
-			if use_planes:
-				for p in poly_left:
-					if abs(plane.distance_to(p)) < 0.001:
-						intersection_points.append(p)
-
-		if use_planes:
-			if poly_right.size() >= 3:
-				add_poly_to_st(st_right, poly_right)
-		else:
-			for piece in poly_right:
-				add_poly_to_st(st_right, piece)
-
-	if use_planes && intersection_points.size() >= 3:
-		fill_cut_hole(st_left, intersection_points, plane)
-		fill_cut_hole(st_right, intersection_points, -plane)
-	else:
-		for i in range(0, len(clip_indices), 3):
-			#i = 2 * 3
-			var triangle := [clip_tetrahedron[clip_indices[i]], clip_tetrahedron[clip_indices[i + 1]], clip_tetrahedron[clip_indices[i + 2]]]
-			var ab = triangle[1] - triangle[0]
-			var ac = triangle[2] - triangle[0]
-			var normal = ac.cross(ab).normalized()
-			#var normal = ab.cross(ac).normalized()
-			#print("normal = ", normal)
-			var plane2 = Plane(normal, triangle[0])
-			intersection_points.clear()
-			var mdt2 = MeshDataTool.new()
-			var array = st_left.commit_to_arrays()
-			var arr_mesh = ArrayMesh.new()
-			arr_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, array)
-			mdt2.create_from_surface(arr_mesh, 0)
-			#var mean = (triangle[2] + triangle[1] + triangle[2]) / 3
-			#print("points = ", mdt2.get_vertex_count())
-			# TODO dé-dupliquer les points (pour améliorer les perfs)
-			for p in range(mdt2.get_vertex_count()):
-				#print(ClipPolygon.distance_to_triangle(mdt2.get_vertex(p), triangle))
-				#if abs(Plane(normal, mean).distance_to(mdt2.get_vertex(p))) < 0.001 \
-					#&& ClipPolygon.distance_to_triangle(mdt2.get_vertex(p), triangle) < 0.001:
-				if ClipPolygon.distance_to_triangle(mdt2.get_vertex(p), triangle) < 0.001:
-					intersection_points.append(mdt2.get_vertex(p))
-			print("intersection_points.size() = ", intersection_points.size())
-			if intersection_points.size() >= 3:
-				show_points_3d(intersection_points, Color.RED, points_node2)
-				fill_cut_hole(st_left, intersection_points, plane2)
-				fill_cut_hole(st_right, intersection_points, -plane2)
-			#break
-
-	var mesh_left = finalize_st(st_left)
-	var mesh_right = finalize_st(st_right)
-
-	var parent_body = mesh_instance.get_parent()
-	var velocity = parent_body.linear_velocity if parent_body is RigidBody3D else Vector3.ZERO
-	var trans = mesh_instance.global_transform
-
-	var mi3d_left = create_piece(mesh_left, trans, velocity, plane.normal * 0.005, true, plane_point)
-	var mi3d_right = create_piece(mesh_right, trans, velocity, -plane.normal * 0.005, false, plane_point)
-
-	if use_planes:
-		parent_body.queue_free()
-
-		if points.size() >= 2:
-			if mi3d_left: slice_object(mi3d_left, points.duplicate(), depth - 1)
-			if mi3d_right: slice_object(mi3d_right, points.duplicate(), depth - 1)
-
-func fill_cut_hole(st: SurfaceTool, points: PackedVector3Array, plane: Plane):
-	if points.size() < 3: return
-	# calcul centre du trou
-	var center := Vector3.ZERO
-	for p in points: center += p
-	center /= points.size()
-	# creation du plan pour projeter les points
-	var v_up := plane.normal.cross(Vector3.RIGHT if abs(plane.normal.x) < 0.9 else Vector3.FORWARD).normalized()
-	var v_right := plane.normal.cross(v_up).normalized()
-	# on tri les points pour faire le contour correctement
-	var sorted_points := Array(points)
-	sorted_points.sort_custom(func(a, b):
-		var da = a - center
-		var db = b - center
-		return atan2(da.dot(v_up), da.dot(v_right)) < atan2(db.dot(v_up), db.dot(v_right))
-	)
-	# on passe les point3D en 2D pour faciliter
-	var points_2d := PackedVector2Array()
-	for p in sorted_points:
-		points_2d.append(Vector2(p.dot(v_right), p.dot(v_up)))
-	# ear clipping -> renvoie une liste d'indice par trois pour les triangles
-	var indices := Geometry2D.triangulate_polygon(points_2d)
-	if indices.is_empty():
-		return
-	# on assemble
-	for i in range(0, indices.size(), 3):
-		var p1 = sorted_points[indices[i]]
-		var p2 = sorted_points[indices[i+1]]
-		var p3 = sorted_points[indices[i+2]]
-		st.add_vertex(p1)
-		st.add_vertex(p2)
-		st.add_vertex(p3)
-	
-	#LA IL FAUT RAJOUTER POUR LES UVs MAIS DUR A OPTI
-
-func finalize_st(st: SurfaceTool) -> Mesh:
-	st.index()
-	st.generate_normals()
-	#st.generate_tangents() #il faut les Uvs pour ça
-	return st.commit()
-
-func add_poly_to_st(st: SurfaceTool, poly: PackedVector3Array):
-	# fan triangulation
-	for i in range(1, poly.size() - 1):
-		st.add_vertex(poly[0])
-		st.add_vertex(poly[i])
-		st.add_vertex(poly[i+1])
-
-func create_piece(m: Mesh, t: Transform3D, velocity: Vector3, offset: Vector3, is_left: bool,impact_point: Vector3 = Vector3.ZERO) -> MeshInstance3D:
-	if m.get_surface_count() == 0 or m.get_aabb().size.length() < 0.01:
-		return null
-
-	var new_body = RigidBody3D.new()
-	var new_mesh_inst = MeshInstance3D.new()
-	var new_shape = CollisionShape3D.new()
-
-	new_mesh_inst.mesh = m
-	new_shape.shape = m.create_convex_shape()
-
-	var mesh_size = m.get_aabb().size	#si le morceau est plus petit que 5cm, on crée passs
-	if mesh_size.length() < 0.1: 
-		return null
-
-	var mat := StandardMaterial3D.new()
-	# Correction Aliasing : textures et ombres
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
-	mat.albedo_color = Color.PURPLE if is_left else Color.PINK
-
-	new_mesh_inst.material_override = mat
-	new_body.add_child(new_mesh_inst)
-	new_body.add_child(new_shape)
-
-	pieces_node.add_child(new_body)
-	new_body.global_transform = t
-	new_body.global_translate(offset)
-	new_body.linear_velocity = velocity
-	if use_planes && impact_point != Vector3.ZERO:
-		var push_direction = offset.normalized()
-		var force = 2000.0 
-		new_body.apply_impulse(push_direction * force)
-
-	new_body.global_transform = t
-	new_body.global_translate(offset)
-	new_body.linear_velocity = velocity
-
-	return new_mesh_inst
-
-# sample random points into the aabb
-func sample_aabb(points: PackedVector3Array, amount: int):
-	var start := aabb.position
-	var size := aabb.size
-	for i in amount:
-		var x := randf()
-		var y := randf()
-		var z := randf()
-		points.append(Vector3(start.x + size.x * x, start.y + size.y * y, start.z + size.z * z))
-
-# sample points avec la densité basé sur le point d'impact
-func sample_aabb_with_impact(points: PackedVector3Array, amount: int, impact: Vector3, falloff: float):
-	var start: Vector3 = aabb.position
-	var size: Vector3 = aabb.size
-	var min_bound: Vector3 = start
-	var max_bound: Vector3 = start + size
-	var effective_impact: Vector3 = _clamp_point_to_aabb(impact, AABB(start, size))
-	# Le rayon caractéristique : moitié de la plus petite dimension de l'AABB
-	var characteristic_radius: float = min(size.x, size.y, size.z) * 0.5
-	var near_ratio: float = lerp(0.2, 0.9, falloff)  # More extreme: 20% to 90% near impact
-	var mid_ratio: float = lerp(0.3, 0.05, falloff)  # Reduced mid at high falloff
-	var near_radius: float = characteristic_radius * lerp(0.4, 0.3, falloff)  # Tighter near radius at high falloff
-	var mid_radius: float = characteristic_radius * lerp(0.9, 1.2, falloff)  # Larger mid radius
-		
-	for i in amount:
-		var point: Vector3
-		var pick: float = randf()
-		if pick < near_ratio:
-			point = _random_point_near_impact(effective_impact, near_radius, min_bound, max_bound)
-		elif pick < near_ratio + mid_ratio:
-			point = _random_point_near_impact(effective_impact, mid_radius, min_bound, max_bound)
-		else:
-			point = Vector3(start.x + randf() * size.x, start.y + randf() * size.y, start.z + randf() * size.z)
-		points.append(point)
-	
-
-func _random_point_near_impact(impact: Vector3, radius: float, min_bound: Vector3, max_bound: Vector3) -> Vector3:
-	var dir: Vector3 = Vector3.ZERO
-	for attempt in range(10):
-		dir = Vector3(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0), randf_range(-1.0, 1.0))
-		if dir == Vector3.ZERO:
-			dir = Vector3(1, 0, 0)
-		dir = dir.normalized() * randf() * radius
-		var point: Vector3 = impact + dir
-		if point.x >= min_bound.x and point.x <= max_bound.x and point.y >= min_bound.y and point.y <= max_bound.y and point.z >= min_bound.z and point.z <= max_bound.z:
-			return point
-	# fallback si trop de tentatives, utilise un point proche limitant la longueur du vecteur
-	var fallback_dir: Vector3 = dir.limit_length(radius * 0.6)
-	var fallback: Vector3 = impact + fallback_dir
-	return Vector3(clamp(fallback.x, min_bound.x, max_bound.x), clamp(fallback.y, min_bound.y, max_bound.y), clamp(fallback.z, min_bound.z, max_bound.z))
-
-func show_points(points: PackedVector3Array):
-	for point in points:
-		var new_point := base_point.duplicate()
-		new_point.position = point
-		new_point.visible = true
-		points_node.add_child(new_point)
-
-func _clamp_point_to_aabb(point: Vector3, bounds: AABB) -> Vector3:
-	return Vector3(
-		clamp(point.x, bounds.position.x, bounds.position.x + bounds.size.x),
-		clamp(point.y, bounds.position.y, bounds.position.y + bounds.size.y),
-		clamp(point.z, bounds.position.z, bounds.position.z + bounds.size.z)
-	)
-
-func show_points_2d(points: PackedVector2Array, color: Color):
-	var points_3d : PackedVector3Array = []
-	for point in points:
-		points_3d.append(Vector3(point.x, 0, point.y))
-	show_points_3d(points_3d, color, points_node)
-
-func show_points_3d(points: PackedVector3Array, color: Color, node: Node):
-	for point in points:
-		var new_point := MeshInstance3D.new()
-		new_point.mesh = PointMesh.new()
-		new_point.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		new_point.position = point
-		new_point.mesh.material = base_point.mesh.material.duplicate()
-		new_point.mesh.material.albedo_color = color
-		node.add_child(new_point)
-
-
-
-
-
-
-# visualise les points avec gradient de couleur basé sur la distance à l'impact
-func show_points_3d_with_impact(points: PackedVector3Array, impact: Vector3, node: Node):
-	var max_distance: float = 0.0
-	for point in points:
-		var dist: float = point.distance_to(impact)
-		if dist > max_distance:
-			max_distance = dist
-	
-	if max_distance == 0.0:
-		max_distance = 1.0
-			
-	for point in points:
-		var new_point := MeshInstance3D.new()
-		new_point.mesh = PointMesh.new()
-		new_point.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		new_point.position = point
-		new_point.mesh.material = base_point.mesh.material.duplicate()
-		
-		var distance: float = point.distance_to(impact)
-		var ratio: float = distance / max_distance
-		
-		var point_color: Color
-		if ratio < 0.33:
-			# rouge à orange
-			point_color = Color.RED.lerp(Color(1.0, 0.5, 0.0), ratio * 3.0)
-		elif ratio < 0.66:
-			# orange à jaune
-			point_color = Color(1.0, 0.5, 0.0).lerp(Color.YELLOW, (ratio - 0.33) * 3.0)
-		else:
-			# jaune à vert
-			point_color = Color.YELLOW.lerp(Color.GREEN, (ratio - 0.66) * 3.0)
-		
-		new_point.mesh.material.albedo_color = point_color
-		node.add_child(new_point)
-	
-	var impact_mesh := MeshInstance3D.new()
-	impact_mesh.mesh = PointMesh.new()
-	impact_mesh.position = impact
-	impact_mesh.mesh.material = base_point.mesh.material.duplicate()
-	impact_mesh.mesh.material.albedo_color = Color.MAGENTA
-	node.add_child(impact_mesh)
-	
-
-
-
-
-
-
-
-
-
-func show_tetrahedralization(points: PackedVector3Array):
-	voronoi_fracture.bowyer_watson(points)
-	voronoi_fracture.compute_voronoi_diagram()
-	tetrahedralization_debug_mesh = voronoi_fracture.create_debug_mesh()
-	add_child(tetrahedralization_debug_mesh)
-	voronoi_diagram_debug_mesh = voronoi_fracture.create_debug_voronoi_mesh()
-	add_child(voronoi_diagram_debug_mesh)
-
-# pick two points and return a plane
-func plane_from_points(points: PackedVector3Array) -> Plane:
-	if points.size() >= 2:
-		var plane_normal := points[0] - points[1]
-		points.remove_at(0)
-		points.remove_at(0)
-		return Plane(plane_normal)
-	return Plane.PLANE_XZ
+var point_sampler: PointSampler
+var mesh_slicer: MeshSlicer
+var piece_creator: PieceCreator
+var visualizer: Visualizer
+var impact_manager: ImpactManager
 
 func _ready():
 	voronoi_fracture = VoronoiFracture.new()
@@ -407,42 +44,19 @@ func _ready():
 	clip_tetrahedron = [Vector3(0.75, 0, -2), Vector3(-2, 0.5, 0), Vector3(0, 0, 2), Vector3(0, 2, 0)]
 	clip_indices = [0, 3, 1, 1, 3, 2, 2, 3, 0, 0, 1, 2]
 
-	set_impact_at_position(Vector3(0, 0.5, 0.35), impact_falloff)  # on défini point d'impact et falloff
+	# Initialize new classes
+	point_sampler = PointSampler.new(aabb)
+	visualizer = Visualizer.new(points_node, points_node2, base_point)
+	piece_creator = PieceCreator.new(pieces_node, use_planes)
+	mesh_slicer = MeshSlicer.new(use_planes, clip_tetrahedron, clip_indices, visualizer)
+	impact_manager = ImpactManager.new()
 
-
-
-
-
-
-
-	print("dist(0, 1, 0) = ", dist) # 1
+	impact_manager.set_impact_at_position(Vector3(0, 0.5, 0.35), impact_manager.impact_falloff)  # on défini point d'impact et falloff
 
 func _on_use_planes_toggled(toggled_on: bool) -> void:
 	use_planes = toggled_on
-
-
-
-# Active/désactive la distribution avec impact et définit le point
-func set_impact_distribution(enabled: bool, point: Vector3 = Vector3.ZERO, falloff: float = 0.5):
-	use_impact_distribution = enabled
-	impact_point = point
-	impact_point_set = enabled
-	impact_falloff = clamp(falloff, 0.0, 1.0)
-
-# Définit le point d'impact au centre du mesh
-func set_impact_at_center():
-	var center = aabb.get_center()
-	set_impact_distribution(true, center, impact_falloff)
-
-# Définit le point d'impact à une position spécifique
-func set_impact_at_position(position: Vector3, falloff: float = 0.5):
-	set_impact_distribution(true, position, falloff)
-
-
-
-
-
-
+	mesh_slicer.use_planes = use_planes
+	piece_creator.use_planes = use_planes
 
 func _on_slice_button_pressed():
 	clean_pieces()
@@ -450,18 +64,18 @@ func _on_slice_button_pressed():
 	var depth = int(depth_spin.value)
 	var voronoi_points: PackedVector3Array = []
 	
-	if use_impact_distribution and not impact_point_set:
-		impact_point = aabb.get_center()
-		impact_point_set = true
-	if use_impact_distribution and impact_point_set:
-		sample_aabb_with_impact(voronoi_points, nb_points, impact_point, impact_falloff)
-		show_points_3d_with_impact(voronoi_points, impact_point, points_node)
+	if impact_manager.use_impact_distribution and not impact_manager.impact_point_set:
+		impact_manager.impact_point = aabb.get_center()
+		impact_manager.impact_point_set = true
+	if impact_manager.use_impact_distribution and impact_manager.impact_point_set:
+		point_sampler.sample_aabb_with_impact(voronoi_points, nb_points, impact_manager.impact_point, impact_manager.impact_falloff)
+		visualizer.show_points_3d_with_impact(voronoi_points, impact_manager.impact_point, points_node)
 	else:
-		sample_aabb(voronoi_points, nb_points)
-		show_points(voronoi_points)
+		point_sampler.sample_aabb(voronoi_points, nb_points)
+		visualizer.show_points(voronoi_points)
 		
-	#show_tetrahedralization(voronoi_points)
-	slice_object(original_mesh_instance, voronoi_points, depth)
+	#visualizer.show_tetrahedralization(voronoi_points, voronoi_fracture, self)
+	mesh_slicer.slice_object(original_mesh_instance, voronoi_points, depth, piece_creator)
 	slice_button.disabled = true
 
 func _on_reset_button_pressed():
