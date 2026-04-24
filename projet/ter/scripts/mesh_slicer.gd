@@ -79,8 +79,8 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 				add_poly_to_st(st_right, piece)
 
 	if use_planes && intersection_points.size() >= 3:
-		fill_cut_hole(st_left, intersection_points, plane)
-		fill_cut_hole(st_right, intersection_points, -plane)
+		PieceCreator.fill_cut_hole(st_left, intersection_points, plane)
+		PieceCreator.fill_cut_hole(st_right, intersection_points, -plane)
 	else:
 		for i in range(0, len(clip_indices), 3):
 			#i = 2 * 3
@@ -109,8 +109,8 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 			print("intersection_points.size() = ", intersection_points.size())
 			if intersection_points.size() >= 3:
 				visualizer.show_points_3d(intersection_points, Color.RED, visualizer.points_node2)
-				fill_cut_hole(st_left, intersection_points, plane2)
-				fill_cut_hole(st_right, intersection_points, -plane2)
+				PieceCreator.fill_cut_hole(st_left, intersection_points, plane2)
+				PieceCreator.fill_cut_hole(st_right, intersection_points, -plane2)
 			#break
 
 	var mesh_left = finalize_st(st_left)
@@ -129,41 +129,6 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 		if points.size() >= 2:
 			if mi3d_left: slice_object(mi3d_left, points.duplicate(), depth - 1, piece_creator)
 			if mi3d_right: slice_object(mi3d_right, points.duplicate(), depth - 1, piece_creator)
-
-func fill_cut_hole(st: SurfaceTool, points: PackedVector3Array, plane: Plane):
-	if points.size() < 3: return
-	# calcul centre du trou
-	var center := Vector3.ZERO
-	for p in points: center += p
-	center /= points.size()
-	# creation du plan pour projeter les points
-	var v_up := plane.normal.cross(Vector3.RIGHT if abs(plane.normal.x) < 0.9 else Vector3.FORWARD).normalized()
-	var v_right := plane.normal.cross(v_up).normalized()
-	# on tri les points pour faire le contour correctement
-	var sorted_points := Array(points)
-	sorted_points.sort_custom(func(a, b):
-		var da = a - center
-		var db = b - center
-		return atan2(da.dot(v_up), da.dot(v_right)) < atan2(db.dot(v_up), db.dot(v_right))
-	)
-	# on passe les point3D en 2D pour faciliter
-	var points_2d := PackedVector2Array()
-	for p in sorted_points:
-		points_2d.append(Vector2(p.dot(v_right), p.dot(v_up)))
-	# ear clipping -> renvoie une liste d'indice par trois pour les triangles
-	var indices := Geometry2D.triangulate_polygon(points_2d)
-	if indices.is_empty():
-		return
-	# on assemble
-	for i in range(0, indices.size(), 3):
-		var p1 = sorted_points[indices[i]]
-		var p2 = sorted_points[indices[i+1]]
-		var p3 = sorted_points[indices[i+2]]
-		st.add_vertex(p1)
-		st.add_vertex(p2)
-		st.add_vertex(p3)
-	
-	#LA IL FAUT RAJOUTER POUR LES UVs MAIS DUR A OPTI
 
 func finalize_st(st: SurfaceTool) -> Mesh:
 	st.index()
