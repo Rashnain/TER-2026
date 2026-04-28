@@ -130,8 +130,9 @@ static func distance_to_triangle(point: Vector3, triangle: PackedVector3Array) -
 	var ab := triangle[1] - triangle[0]
 	var ac := triangle[2] - triangle[0]
 	var normal_tri := ac.cross(ab).normalized()
-	var dist_to_plane = (point - triangle[0]).dot(normal_tri)
-	distances.append(abs(dist_to_plane))
+	var dist_to_plane = abs((point - triangle[0]).dot(normal_tri))
+	#distances.append(abs(dist_to_plane))
+	#print(dist_to_plane)
 
 	var is_inside := true
 	for i in range(len(triangle)):
@@ -144,19 +145,16 @@ static func distance_to_triangle(point: Vector3, triangle: PackedVector3Array) -
 		var H = A + AH * dir
 		var distance = (H - point).length()
 		distances.append(distance)
-		var normal := dir.rotated(normal_tri, PI/4)
-		#print(distance)
+		var normal := dir.rotated(normal_tri, PI/2)
+		#print(normal)
 		if (point - A).dot(normal) > 0:
 			is_inside = false
 
-	var min_dist := distances[min_arr(distances)]
+	#print("is_inside=", is_inside)
+	if is_inside:
+		return dist_to_plane
 
-	if is_inside && min_dist < 0.001:
-		#print(0)
-		return 0
-
-	#print(min_dist, " sqrt=", sqrt(min_dist))
-	return min_dist
+	return distances[min_arr(distances)]
 
 static func min_arr(array: Array[float]) -> int:
 	var min_val = array[0]
