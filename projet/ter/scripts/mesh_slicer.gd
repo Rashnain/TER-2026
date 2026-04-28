@@ -106,6 +106,35 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 					#&& ClipPolygon.distance_to_triangle(mdt2.get_vertex(p), triangle) < 0.001:
 				if ClipPolygon.distance_to_triangle(mdt2.get_vertex(p), triangle) < 0.001:
 					intersection_points.append(mdt2.get_vertex(p))
+			for v in triangle:
+				#v = triangle[1]
+				#if ClipPolygon.is_point_inside_mesh(v, mdt2):
+				var inside := true
+				var distances: Array[float] = []
+				for v2 in range(mdt.get_vertex_count()):
+					distances.append((mdt.get_vertex(v2) - v).length_squared())
+
+				var closest_vertex := ClipPolygon.mins_arr(distances)
+				for closest_index in closest_vertex:
+					#visualizer.show_points_3d([mdt.get_vertex(closest_index)], Color.RED, visualizer.points_node2)
+					#print("closest_vertex is ", closest_vertex)
+
+					for t in range(mdt.get_face_count()):
+						for y in range(3):
+							if mdt.get_face_vertex(t, y) == closest_index:
+								#for j in range(3):
+									#print("point ", j, " is ", mdt.get_vertex(mdt.get_face_vertex(t, j)))
+									#visualizer.show_points_3d([mdt.get_vertex(mdt.get_face_vertex(t, j))], Color.PURPLE, visualizer.points_node2)
+								#print("normal=", mdt.get_face_normal(t))
+								var normal_t := mdt.get_face_normal(t)
+								if normal_t.length_squared() == 0: continue
+								if (v - mdt.get_vertex(closest_index)).dot(mdt.get_face_normal(t)) > 0:
+									inside = false
+									#break
+				if inside:
+					#print("v ", v, " is inside the mesh")
+					intersection_points.append(v)
+				#break
 			print("intersection_points.size() = ", intersection_points.size())
 			if intersection_points.size() >= 3:
 				visualizer.show_points_3d(intersection_points, Color.RED, visualizer.points_node2)

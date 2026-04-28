@@ -154,13 +154,16 @@ static func distance_to_triangle(point: Vector3, triangle: PackedVector3Array) -
 	if is_inside:
 		return dist_to_plane
 
-	return distances[min_arr(distances)]
+	return distances[mins_arr(distances)[0]]
 
-static func min_arr(array: Array[float]) -> int:
-	var min_val = array[0]
-	var min_idx = 0
-	for i in range(len(array)):
-		if array[i] < min_val:
-			min_val = array[i]
-			min_idx = i
+static func mins_arr(array: Array[float]) -> Array[int]:
+	var min_val: Array[float] = [array[0]]
+	var min_idx: Array[int] = [0]
+	for i in range(1, len(array)):
+		if array[i] < min_val[0]:
+			min_val = [array[i]]
+			min_idx = [i]
+		elif array[i] == min_val[0]:
+			min_val.append(array[i])
+			min_idx.append(i)
 	return min_idx

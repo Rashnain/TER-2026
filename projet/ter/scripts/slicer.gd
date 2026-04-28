@@ -39,10 +39,38 @@ func _ready():
 
 	aabb_node.rotate(Vector3.UP, PI/2) 
 	use_planes = use_planes_button.button_pressed
-	#clip_tetrahedron = [Vector3(0, 0, -2), Vector3(-2, 0, 0), Vector3(0, 0, 2), Vector3(0, 2, 0)]
-	#clip_tetrahedron = [Vector3(0.5, 0, -2), Vector3(-2, 0, 0), Vector3(0, 0, 2), Vector3(0, 2, 0)]
-	clip_tetrahedron = [Vector3(0.75, 0, -2), Vector3(-2, 0.5, 0), Vector3(0, 0, 2), Vector3(0, 2, 0)]
+	#clip_tetrahedron = [Vector3(0, 0, -2), Vector3(-2, 0, 0), Vector3(0, 0, 2), Vector3(0, 2, 0)] # full ext, aligné axes
+	#clip_tetrahedron = [Vector3(0.5, 0, -2), Vector3(-2, 0, 0), Vector3(0, 0, 2), Vector3(0, 2, 0)] # full ext, !aligné
+	#clip_tetrahedron = [Vector3(1, -0.35, -2), Vector3(-2, 0.5, 0), Vector3(0, 0, 2), Vector3(0, 2, 0)] # obj flottant
+	#clip_tetrahedron = [Vector3(0, 0, -2), Vector3(-2, 0, 0), Vector3(0, 0, 2), Vector3(0, 0.4, 0)] # 1p int
+	#clip_tetrahedron = [Vector3(0, 0, -2), Vector3(-0.4, 0, 0), Vector3(0, 0, 2), Vector3(0, 1, 0)] # 1p int
+	#clip_tetrahedron = [Vector3(0, 0, -2), Vector3(-0.4, 0, 0), Vector3(0, 0, 2), Vector3(0, 0.4, 0)] # 2p int
+	clip_tetrahedron = [Vector3(0, 0, -0.4), Vector3(-0.4, 0, 0), Vector3(0, 0, 2), Vector3(0, 0.4, 0)] # 3p int
+	#clip_tetrahedron = [Vector3(0, 0, -0.4), Vector3(-0.4, 0, 0), Vector3(0, 0, 0.4), Vector3(0, 0.4, 0)] # 4p int
 	clip_indices = [0, 3, 1, 1, 3, 2, 2, 3, 0, 0, 1, 2]
+
+	var triangle := [Vector3(0, 0, 2), Vector3(-2, 0, 0), Vector3(0, 0, -2)]
+
+	var dist = ClipPolygon.distance_to_triangle(Vector3(0, 0, 0), triangle)
+	print("dist(0, 0, 0) = ", dist) # 0
+
+	dist = ClipPolygon.distance_to_triangle(Vector3(0.5, 0, 2), triangle)
+	print("dist(0.5, 0, 2) = ", dist) # 0.5
+
+	dist = ClipPolygon.distance_to_triangle(Vector3(0.5, 0, 1), triangle)
+	print("dist(0.5, 0, 1) = ", dist) # 0.5
+
+	dist = ClipPolygon.distance_to_triangle(Vector3(-1, 0, 1.5), triangle)
+	print("dist(-1, 0, 1.5) = ", dist) # <0.5
+
+	dist = ClipPolygon.distance_to_triangle(Vector3(-0.5, 0, 0.5), triangle)
+	print("dist(-0.5, 0, 0.5) = ", dist) # 0
+
+	dist = ClipPolygon.distance_to_triangle(Vector3(-0.5, 0.6, 0.5), triangle)
+	print("dist(-0.5, 0.6, 0.5) = ", dist) # ~0.6
+
+	dist = ClipPolygon.distance_to_triangle(Vector3(0, 1, 0), triangle)
+	print("dist(0, 1, 0) = ", dist) # 1
 
 	# Initialize new classes
 	point_sampler = PointSampler.new(aabb)
