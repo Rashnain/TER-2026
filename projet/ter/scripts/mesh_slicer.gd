@@ -4,7 +4,7 @@ extends RefCounted
 var use_planes: bool
 var clip_tetrahedron: PackedVector3Array
 var clip_indices: Array[int]
-var visualizer: Visualizer  
+var visualizer: Visualizer
 
 func _init(use_p: bool, clip_tet: PackedVector3Array, clip_ind: Array[int], vis: Visualizer):
 	use_planes = use_p
@@ -56,13 +56,16 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 			poly_left = Geometry3D.clip_polygon(triangle, plane)
 			poly_right = Geometry3D.clip_polygon(triangle, -plane)
 		else:
-			visualizer.show_points_3d(clip_tetrahedron, Color.YELLOW, visualizer.points_node2)
+			if visualizer.points_node2.visible:
+				visualizer.show_points_3d(clip_tetrahedron, Color.YELLOW, visualizer.points_node2)
 			var res := ClipPolygon.clip_polygon_3d(triangle, clip_tetrahedron, clip_indices)
 			poly_left = res[0]
-			visualizer.show_points_3d(poly_left, Color.BLACK, visualizer.points_node2)
+			if visualizer.points_node2.visible:
+				visualizer.show_points_3d(poly_left, Color.BLACK, visualizer.points_node2)
 			poly_right = res[1]
-			for y in range(len(poly_right)):
-				visualizer.show_points_3d(poly_right[y], Color.WHITE / (y+1), visualizer.points_node2)
+			if visualizer.points_node2.visible:
+				for y in range(len(poly_right)):
+					visualizer.show_points_3d(poly_right[y], Color.WHITE / (y+1), visualizer.points_node2)
 
 		if poly_left.size() >= 3:
 			add_poly_to_st(st_left, poly_left)
@@ -137,7 +140,8 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 				#break
 			print("intersection_points.size() = ", intersection_points.size())
 			if intersection_points.size() >= 3:
-				visualizer.show_points_3d(intersection_points, Color.RED, visualizer.points_node2)
+				if visualizer.points_node2.visible:
+					visualizer.show_points_3d(intersection_points, Color.RED, visualizer.points_node2)
 				PieceCreator.fill_cut_hole(st_left, intersection_points, plane2)
 				PieceCreator.fill_cut_hole(st_right, intersection_points, -plane2)
 			#break

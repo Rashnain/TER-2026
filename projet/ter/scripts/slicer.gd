@@ -126,3 +126,8 @@ func clean_pieces():
 	for piece in pieces_node.get_children():
 		if piece.name != "points":
 			piece.queue_free()
+
+
+func _on_points_toggled(toggled_on: bool) -> void:
+	visualizer.points_node.visible = toggled_on
+	visualizer.points_node2.visible = toggled_on
