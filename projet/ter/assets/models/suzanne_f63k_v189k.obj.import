@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://bs53i3s8timsu"
+path="res://.godot/imported/suzanne_f63k_v189k.obj-487a20ace9c493dc0ad3e025218b79ee.mesh"
+
+[deps]
+
+files=["res://.godot/imported/suzanne_f63k_v189k.obj-487a20ace9c493dc0ad3e025218b79ee.mesh"]
+
+source_file="res://assets/models/suzanne_f63k_v189k.obj"
+dest_files=["res://.godot/imported/suzanne_f63k_v189k.obj-487a20ace9c493dc0ad3e025218b79ee.mesh", "res://.godot/imported/suzanne_f63k_v189k.obj-487a20ace9c493dc0ad3e025218b79ee.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false
