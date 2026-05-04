@@ -9,6 +9,7 @@ func _init(pieces_n: Node3D, use_p: bool):
 	use_planes = use_p
 
 static func fill_cut_hole(st: SurfaceTool, points: PackedVector3Array, plane: Plane):
+	var start := Time.get_ticks_msec()
 	if points.size() < 3: return
 	# calcul centre du trou
 	var center := Vector3.ZERO
@@ -40,10 +41,15 @@ static func fill_cut_hole(st: SurfaceTool, points: PackedVector3Array, plane: Pl
 		st.add_vertex(p1)
 		st.add_vertex(p2)
 		st.add_vertex(p3)
-	
+
+	var delta := Time.get_ticks_msec() - start
+	print("fill_cut_hole = ", delta, " ms")
+
 	#LA IL FAUT RAJOUTER POUR LES UVs MAIS DUR A OPTI
 
 func create_piece(m: Mesh, t: Transform3D, velocity: Vector3, offset: Vector3, is_left: bool, impact_point: Vector3 = Vector3.ZERO) -> MeshInstance3D:
+	var start := Time.get_ticks_msec()
+
 	if m.get_surface_count() == 0 or m.get_aabb().size.length() < 0.01:
 		return null
 
@@ -79,5 +85,8 @@ func create_piece(m: Mesh, t: Transform3D, velocity: Vector3, offset: Vector3, i
 	new_body.global_transform = t
 	new_body.global_translate(offset)
 	new_body.linear_velocity = velocity
+
+	var delta := Time.get_ticks_msec() - start
+	print("create_piece = ", delta, " ms")
 
 	return new_mesh_inst

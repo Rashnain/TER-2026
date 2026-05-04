@@ -87,6 +87,7 @@ func _on_use_planes_toggled(toggled_on: bool) -> void:
 	piece_creator.use_planes = use_planes
 
 func _on_slice_button_pressed():
+	var start := Time.get_ticks_msec()
 	clean_pieces()
 	var nb_points = int(points_spin.value)
 	var depth = int(depth_spin.value)
@@ -101,9 +102,14 @@ func _on_slice_button_pressed():
 	else:
 		point_sampler.sample_aabb(voronoi_points, nb_points)
 		visualizer.show_points(voronoi_points)
-		
+
+	var delta := Time.get_ticks_msec() - start
+	print("avant slice_object = ", delta, " ms")
 	#visualizer.show_tetrahedralization(voronoi_points, voronoi_fracture, self)
+	start = Time.get_ticks_msec()
 	mesh_slicer.slice_object(original_mesh_instance, voronoi_points, depth, piece_creator)
+	delta = Time.get_ticks_msec() - start
+	print("slice_object = ", delta, " ms")
 	slice_button.disabled = true
 
 func _on_reset_button_pressed():
