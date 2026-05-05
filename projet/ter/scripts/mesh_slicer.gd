@@ -13,6 +13,8 @@ func _init(use_p: bool, clip_tet: PackedVector3Array, clip_ind: Array[int], vis:
 	visualizer = vis
 
 func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, depth: int, piece_creator: PieceCreator):
+	var start := Time.get_ticks_msec()
+
 	if depth <= 0 or mesh_instance == null:
 		return
 
@@ -47,7 +49,9 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 
 	var intersection_points : PackedVector3Array = []
 
-	var start := Time.get_ticks_msec()
+	var delta := Time.get_ticks_msec() - start
+	print("avant mesh slicing = ", delta, " ms")
+	start = Time.get_ticks_msec()
 	for i in range(mdt.get_face_count()):
 		var v1 := mdt.get_vertex(mdt.get_face_vertex(i, 0))
 		var v2 := mdt.get_vertex(mdt.get_face_vertex(i, 1))
@@ -84,13 +88,14 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 		else:
 			for piece in poly_right:
 				add_poly_to_st(st_right, piece)
-	var delta := Time.get_ticks_msec() - start
+	delta = Time.get_ticks_msec() - start
 	print("mesh slicing = ", delta, " ms")
 
 	if use_planes && intersection_points.size() >= 3:
 		PieceCreator.fill_cut_hole(st_left, intersection_points, plane)
 		PieceCreator.fill_cut_hole(st_right, intersection_points, -plane)
 	else:
+		start = Time.get_ticks_msec()
 		var mdt2 = MeshDataTool.new()
 		var array = st_left.commit_to_arrays()
 		var arr_mesh = ArrayMesh.new()
@@ -145,6 +150,8 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 				#intersection_points.append(v)
 			insides.append(inside)
 			#break
+		delta = Time.get_ticks_msec() - start
+		print("deduplications = ", delta, " ms")
 		for i in range(0, len(clip_indices), 3):
 			start = Time.get_ticks_msec()
 			var indices := [clip_indices[i], clip_indices[i + 1], clip_indices[i + 2]]
