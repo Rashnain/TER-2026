@@ -128,31 +128,41 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 			print("compute intersection sans clipper = ", delta, " ms")
 			print("intersection points sans clipper = ", intersection_points.size())
 			start = Time.get_ticks_msec()
+			# TODO les points sont calculé plusieurs fois pour rien!
+			# opti possible 12 -> 4
 			for v in triangle:
 				#v = triangle[1]
 				#if ClipPolygon.is_point_inside_mesh(v, mdt2):
 				var inside := true
 				var distances: Array[float] = []
-				# TODO dédupliquer ici (marchera peut être pas)
 				for v2 in range(mdt.get_vertex_count()):
 					distances.append((mdt.get_vertex(v2) - v).length_squared())
 
 				var closest_vertex := ClipPolygon.mins_arr(distances)
 				print(closest_vertex)
+				var deduplicated_faces: PackedInt32Array
 				for closest_index in closest_vertex:
-					if visualizer.points_node2.visible:
-						visualizer.show_points_3d([mdt.get_vertex(closest_index)], Color.RED, visualizer.points_node2)
+					for t in mdt.get_vertex_faces(closest_index):
+						if t not in deduplicated_faces:
+							deduplicated_faces.append(t)
+				print("face après déduplication = ", deduplicated_faces.size())
+				#for closest_index in closest_vertex:
+					#if visualizer.points_node2.visible:
+						#visualizer.show_points_3d([mdt.get_vertex(closest_index)], Color.RED, visualizer.points_node2)
 					#print("closest_vertex is ", closest_vertex)
 
-					for t in mdt.get_vertex_faces(closest_index):
-						if visualizer.points_node2.visible:
-							for j in range(3):
-								visualizer.show_points_3d([mdt.get_vertex(mdt.get_face_vertex(t, j))], Color.PURPLE, visualizer.points_node2)
-						var normal_t := mdt.get_face_normal(t)
-						if normal_t.length_squared() == 0: continue
-						if (v - mdt.get_vertex(closest_index)).dot(normal_t) > 0:
-							inside = false
-							break
+					#print(mdt.get_vertex_faces(closest_index))
+					# TODO dédupliquer indice face
+				for t in deduplicated_faces:
+				#for t in mdt.get_vertex_faces(closest_index):
+					if visualizer.points_node2.visible:
+						for j in range(3):
+							visualizer.show_points_3d([mdt.get_vertex(mdt.get_face_vertex(t, j))], Color.PURPLE, visualizer.points_node2)
+					var normal_t := mdt.get_face_normal(t)
+					if normal_t.length_squared() == 0: continue
+					if (v - mdt.get_vertex(mdt.get_face_vertex(t, 0))).dot(normal_t) > 0:
+						inside = false
+						break
 
 				if inside:
 					#print("v ", v, " is inside the mesh")
