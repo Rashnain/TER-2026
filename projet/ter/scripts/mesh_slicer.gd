@@ -91,6 +91,20 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 		PieceCreator.fill_cut_hole(st_left, intersection_points, plane)
 		PieceCreator.fill_cut_hole(st_right, intersection_points, -plane)
 	else:
+		var mdt2 = MeshDataTool.new()
+		var array = st_left.commit_to_arrays()
+		var arr_mesh = ArrayMesh.new()
+		arr_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, array)
+		mdt2.create_from_surface(arr_mesh, 0)
+		var deduplicated_indexes: PackedInt32Array
+		var deduplicated_points: PackedVector3Array
+		print("point avant déduplication = ", mdt2.get_vertex_count())
+		for v in range(mdt2.get_vertex_count()):
+			var vertex := mdt2.get_vertex(v)
+			if vertex not in deduplicated_points:
+				deduplicated_indexes.append(v)
+				deduplicated_points.append(vertex)
+		print("point après déduplication = ", deduplicated_points.size())
 		for i in range(0, len(clip_indices), 3):
 			start = Time.get_ticks_msec()
 			#i = 2 * 3
@@ -102,15 +116,9 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 			#print("normal = ", normal)
 			var plane2 = Plane(normal, triangle[0])
 			intersection_points.clear()
-			var mdt2 = MeshDataTool.new()
-			var array = st_left.commit_to_arrays()
-			var arr_mesh = ArrayMesh.new()
-			arr_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, array)
-			mdt2.create_from_surface(arr_mesh, 0)
 			#var mean = (triangle[2] + triangle[1] + triangle[2]) / 3
 			#print("points = ", mdt2.get_vertex_count())
-			# TODO dé-dupliquer les points (pour améliorer les perfs)
-			for p in range(mdt2.get_vertex_count()):
+			for p in deduplicated_indexes:
 				#print(ClipPolygon.distance_to_triangle(mdt2.get_vertex(p), triangle))
 				#if abs(Plane(normal, mean).distance_to(mdt2.get_vertex(p))) < 0.001 \
 					#&& ClipPolygon.distance_to_triangle(mdt2.get_vertex(p), triangle) < 0.001:

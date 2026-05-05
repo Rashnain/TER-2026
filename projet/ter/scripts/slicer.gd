@@ -104,8 +104,6 @@ func _on_slice_button_pressed():
 	else:
 		point_sampler.sample_aabb(voronoi_points, nb_points)
 		visualizer.show_points(voronoi_points)
-	var delta := Time.get_ticks_msec() - start
-	print("avant slice_object = ", delta, " ms")
 	
 	dt.insert_points(voronoi_points)
 	var nb_violations = dt.verify()
@@ -114,6 +112,9 @@ func _on_slice_button_pressed():
 	visualizer.show_tetrahedralization2(dt, points_node)
 	visualizer.show_points_3d(dt.get_circumcenters(), dt.color_cc, points_node)
 	#visualizer.show_tetrahedralization(voronoi_points, voronoi_fracture, self)
+
+	var delta := Time.get_ticks_msec() - start
+	print("avant slice_object = ", delta, " ms")
 	start = Time.get_ticks_msec()
 	mesh_slicer.slice_object(original_mesh_instance, voronoi_points, depth, piece_creator)
 	delta = Time.get_ticks_msec() - start
