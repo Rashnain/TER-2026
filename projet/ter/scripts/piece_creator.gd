@@ -44,8 +44,75 @@ static func fill_cut_hole(st: SurfaceTool, points: PackedVector3Array, plane: Pl
 
 	var delta := Time.get_ticks_msec() - start
 	print("fill_cut_hole = ", delta, " ms")
-
 	#LA IL FAUT RAJOUTER POUR LES UVs MAIS DUR A OPTI
+
+#pour les meshs concaves !!!
+static func fill_cut_hole_concave(st: SurfaceTool, edges: Array, plane: Plane):
+	var start := Time.get_ticks_msec()
+	if edges.is_empty(): return
+
+	# on fait des boucles avec les aretes
+	var loops := []
+	var remaining_edges = edges.duplicate()
+
+	while remaining_edges.size() > 0:
+		var current_loop = PackedVector3Array()
+		var edge = remaining_edges.pop_front()
+		current_loop.append(edge[0])
+		current_loop.append(edge[1])
+
+		var closed = false
+		while not closed and remaining_edges.size() > 0:
+			var found_next = false
+			var last_pt = current_loop[-1]
+			for i in range(remaining_edges.size()):
+				var e = remaining_edges[i]
+				if last_pt.distance_to(e[0]) < 0.001:
+					current_loop.append(e[1])
+					remaining_edges.remove_at(i)
+					found_next = true
+					break
+				elif last_pt.distance_to(e[1]) < 0.001:
+					current_loop.append(e[0])
+					remaining_edges.remove_at(i)
+					found_next = true
+					break
+			if not found_next:
+				break
+			if current_loop[0].distance_to(current_loop[-1]) < 0.001:
+				closed = true
+		loops.append(current_loop)
+
+	# plan proj
+	var v_up := plane.normal.cross(Vector3.RIGHT if abs(plane.normal.x) < 0.9 else Vector3.FORWARD).normalized()
+	var v_right := plane.normal.cross(v_up).normalized()
+
+	# on triangule chaque trous
+	for loop in loops:
+		var loop_points = loop
+		#enleve le dernier point car pas necessaire
+		if loop_points.size() > 0 and loop_points[0].distance_to(loop_points[-1]) < 0.001:
+			loop_points.remove_at(loop_points.size() - 1)
+			
+		if loop_points.size() < 3:
+			continue
+
+		var points_2d := PackedVector2Array()
+		for p in loop_points:
+			points_2d.append(Vector2(p.dot(v_right), p.dot(v_up)))
+
+		var indices := Geometry2D.triangulate_polygon(points_2d)
+		if indices.is_empty():
+			continue
+
+		for i in range(0, indices.size(), 3):
+			st.add_vertex(loop_points[indices[i]])
+			st.add_vertex(loop_points[indices[i+1]])
+			st.add_vertex(loop_points[indices[i+2]])
+
+	var delta := Time.get_ticks_msec() - start
+	print("fill_cut_hole_concave = ", delta, " ms")
+
 
 func create_piece(m: Mesh, t: Transform3D, velocity: Vector3, offset: Vector3, is_left: bool, impact_point: Vector3 = Vector3.ZERO) -> MeshInstance3D:
 	var start := Time.get_ticks_msec()
@@ -65,7 +132,6 @@ func create_piece(m: Mesh, t: Transform3D, velocity: Vector3, offset: Vector3, i
 		return null
 
 	var mat := StandardMaterial3D.new()
-	# Correction Aliasing : textures et ombres
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	mat.albedo_color = Color.PURPLE if is_left else Color.PINK
 

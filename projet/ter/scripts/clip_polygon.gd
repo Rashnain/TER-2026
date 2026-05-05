@@ -1,7 +1,18 @@
 extends Node
 class_name ClipPolygon
 
-
+static func is_point_inside_mesh(point: Vector3, mdt: MeshDataTool) -> bool:
+	var ray_dir = Vector3(1, 0, 0) # direction arbitraire
+	var count = 0
+	for f in range(mdt.get_face_count()):
+		var a = mdt.get_vertex(mdt.get_face_vertex(f, 0))
+		var b = mdt.get_vertex(mdt.get_face_vertex(f, 1))
+		var c = mdt.get_vertex(mdt.get_face_vertex(f, 2))
+		if Geometry3D.ray_intersects_triangle(point, ray_dir, a, b, c) != null:
+			count += 1
+	return count % 2 == 1
+	
+	
 static func determinant(v1: Vector2, v2: Vector2) -> float:
 	return v1.x * v2.y - v1.y * v2.x
 

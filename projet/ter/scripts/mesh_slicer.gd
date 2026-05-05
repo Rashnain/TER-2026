@@ -46,6 +46,7 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 	print("mesh faces count = ", mdt.get_face_count())
 
 	var intersection_points : PackedVector3Array = []
+	var intersection_edges : Array = [] #sauvegarde les segments pour recréer les boucles
 
 	var start := Time.get_ticks_msec()
 	for i in range(mdt.get_face_count()):
@@ -74,9 +75,19 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 		if poly_left.size() >= 3:
 			add_poly_to_st(st_left, poly_left)
 			if use_planes:
-				for p in poly_left:
-					if abs(plane.distance_to(p)) < 0.001:
-						intersection_points.append(p)
+				for j in range(poly_left.size()):
+					var p_curr = poly_left[j]
+					var p_next = poly_left[(j + 1) % poly_left.size()]
+					var dist_curr = abs(plane.distance_to(p_curr))
+					var dist_next = abs(plane.distance_to(p_next))
+					
+					# recup les points
+					if dist_curr < 0.001:
+						intersection_points.append(p_curr)
+					
+					# recup les segments connectes pour concave
+					if dist_curr < 0.001 and dist_next < 0.001:
+						intersection_edges.append([p_curr, p_next])
 
 		if use_planes:
 			if poly_right.size() >= 3:
@@ -88,8 +99,9 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 	print("mesh slicing = ", delta, " ms")
 
 	if use_planes && intersection_points.size() >= 3:
-		PieceCreator.fill_cut_hole(st_left, intersection_points, plane)
-		PieceCreator.fill_cut_hole(st_right, intersection_points, -plane)
+		# Utilisation de la nouvelle fonction qui gère le concave
+		PieceCreator.fill_cut_hole_concave(st_left, intersection_edges, plane)
+		PieceCreator.fill_cut_hole_concave(st_right, intersection_edges, -plane)
 	else:
 		var mdt2 = MeshDataTool.new()
 		var array = st_left.commit_to_arrays()
@@ -107,21 +119,13 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 		print("point après déduplication = ", deduplicated_points.size())
 		for i in range(0, len(clip_indices), 3):
 			start = Time.get_ticks_msec()
-			#i = 2 * 3
 			var triangle := [clip_tetrahedron[clip_indices[i]], clip_tetrahedron[clip_indices[i + 1]], clip_tetrahedron[clip_indices[i + 2]]]
 			var ab = triangle[1] - triangle[0]
 			var ac = triangle[2] - triangle[0]
 			var normal = ac.cross(ab).normalized()
-			#var normal = ab.cross(ac).normalized()
-			#print("normal = ", normal)
 			var plane2 = Plane(normal, triangle[0])
 			intersection_points.clear()
-			#var mean = (triangle[2] + triangle[1] + triangle[2]) / 3
-			#print("points = ", mdt2.get_vertex_count())
 			for p in deduplicated_indexes:
-				#print(ClipPolygon.distance_to_triangle(mdt2.get_vertex(p), triangle))
-				#if abs(Plane(normal, mean).distance_to(mdt2.get_vertex(p))) < 0.001 \
-					#&& ClipPolygon.distance_to_triangle(mdt2.get_vertex(p), triangle) < 0.001:
 				if ClipPolygon.distance_to_triangle(mdt2.get_vertex(p), triangle) < 0.001:
 					intersection_points.append(mdt2.get_vertex(p))
 			delta = Time.get_ticks_msec() - start
@@ -129,11 +133,8 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 			print("intersection points sans clipper = ", intersection_points.size())
 			start = Time.get_ticks_msec()
 			for v in triangle:
-				#v = triangle[1]
-				#if ClipPolygon.is_point_inside_mesh(v, mdt2):
 				var inside := true
 				var distances: Array[float] = []
-				# TODO dédupliquer ici (marchera peut être pas)
 				for v2 in range(mdt.get_vertex_count()):
 					distances.append((mdt.get_vertex(v2) - v).length_squared())
 
@@ -142,7 +143,6 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 				for closest_index in closest_vertex:
 					if visualizer.points_node2.visible:
 						visualizer.show_points_3d([mdt.get_vertex(closest_index)], Color.RED, visualizer.points_node2)
-					#print("closest_vertex is ", closest_vertex)
 
 					for t in mdt.get_vertex_faces(closest_index):
 						if visualizer.points_node2.visible:
@@ -155,9 +155,7 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 							break
 
 				if inside:
-					#print("v ", v, " is inside the mesh")
 					intersection_points.append(v)
-				#break
 			print("intersection points = ", intersection_points.size())
 			delta = Time.get_ticks_msec() - start
 			print("compute intersection clipper = ", delta, " ms")
@@ -166,7 +164,6 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 					visualizer.show_points_3d(intersection_points, Color.RED, visualizer.points_node2)
 				PieceCreator.fill_cut_hole(st_left, intersection_points, plane2)
 				PieceCreator.fill_cut_hole(st_right, intersection_points, -plane2)
-			#break
 
 	var mesh_left = finalize_st(st_left)
 	var mesh_right = finalize_st(st_right)
