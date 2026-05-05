@@ -41,9 +41,13 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 
 	var mdt = MeshDataTool.new()
 	mdt.create_from_surface(array_mesh, 0)
+	print("mesh vertexes count = ", mdt.get_vertex_count())
+	print("mesh edge count = ", mdt.get_edge_count())
+	print("mesh faces count = ", mdt.get_face_count())
 
 	var intersection_points : PackedVector3Array = []
 
+	var start := Time.get_ticks_msec()
 	for i in range(mdt.get_face_count()):
 		var v1 := mdt.get_vertex(mdt.get_face_vertex(i, 0))
 		var v2 := mdt.get_vertex(mdt.get_face_vertex(i, 1))
@@ -51,7 +55,7 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 		var triangle := PackedVector3Array([v1, v2, v3])
 
 		var poly_left
-		var poly_right	
+		var poly_right
 		if use_planes:
 			poly_left = Geometry3D.clip_polygon(triangle, plane)
 			poly_right = Geometry3D.clip_polygon(triangle, -plane)
@@ -80,12 +84,15 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 		else:
 			for piece in poly_right:
 				add_poly_to_st(st_right, piece)
+	var delta := Time.get_ticks_msec() - start
+	print("mesh slicing = ", delta, " ms")
 
 	if use_planes && intersection_points.size() >= 3:
 		PieceCreator.fill_cut_hole(st_left, intersection_points, plane)
 		PieceCreator.fill_cut_hole(st_right, intersection_points, -plane)
 	else:
 		for i in range(0, len(clip_indices), 3):
+			start = Time.get_ticks_msec()
 			#i = 2 * 3
 			var triangle := [clip_tetrahedron[clip_indices[i]], clip_tetrahedron[clip_indices[i + 1]], clip_tetrahedron[clip_indices[i + 2]]]
 			var ab = triangle[1] - triangle[0]
@@ -109,17 +116,24 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 					#&& ClipPolygon.distance_to_triangle(mdt2.get_vertex(p), triangle) < 0.001:
 				if ClipPolygon.distance_to_triangle(mdt2.get_vertex(p), triangle) < 0.001:
 					intersection_points.append(mdt2.get_vertex(p))
+			delta = Time.get_ticks_msec() - start
+			print("compute intersection sans clipper = ", delta, " ms")
+			print("intersection points sans clipper = ", intersection_points.size())
+			start = Time.get_ticks_msec()
 			for v in triangle:
 				#v = triangle[1]
 				#if ClipPolygon.is_point_inside_mesh(v, mdt2):
 				var inside := true
 				var distances: Array[float] = []
+				# TODO dédupliquer ici (marchera peut être pas)
 				for v2 in range(mdt.get_vertex_count()):
 					distances.append((mdt.get_vertex(v2) - v).length_squared())
 
 				var closest_vertex := ClipPolygon.mins_arr(distances)
+				print(closest_vertex)
 				for closest_index in closest_vertex:
-					#visualizer.show_points_3d([mdt.get_vertex(closest_index)], Color.RED, visualizer.points_node2)
+					if visualizer.points_node2.visible:
+						visualizer.show_points_3d([mdt.get_vertex(closest_index)], Color.RED, visualizer.points_node2)
 					#print("closest_vertex is ", closest_vertex)
 
 					for t in range(mdt.get_face_count()):
@@ -138,7 +152,9 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 					#print("v ", v, " is inside the mesh")
 					intersection_points.append(v)
 				#break
-			print("intersection_points.size() = ", intersection_points.size())
+			print("intersection points = ", intersection_points.size())
+			delta = Time.get_ticks_msec() - start
+			print("compute intersection clipper = ", delta, " ms")
 			if intersection_points.size() >= 3:
 				if visualizer.points_node2.visible:
 					visualizer.show_points_3d(intersection_points, Color.RED, visualizer.points_node2)
