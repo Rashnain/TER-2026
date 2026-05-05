@@ -16,6 +16,7 @@ var aabb: AABB
 
 var original_mesh_instance: MeshInstance3D
 var voronoi_fracture: VoronoiFracture
+var dt: DelaunayTetrahedralization3D
 var tetrahedralization_debug_mesh: Node3D
 var voronoi_diagram_debug_mesh: Node3D
 var use_planes: bool
@@ -30,6 +31,7 @@ var impact_manager: ImpactManager
 
 func _ready():
 	voronoi_fracture = VoronoiFracture.new()
+	dt = DelaunayTetrahedralization3D.new()
 	add_child(voronoi_fracture)
 	original_mesh_instance = mesh_to_cut.get_node("MeshInstance3D")
 
@@ -102,9 +104,15 @@ func _on_slice_button_pressed():
 	else:
 		point_sampler.sample_aabb(voronoi_points, nb_points)
 		visualizer.show_points(voronoi_points)
-
 	var delta := Time.get_ticks_msec() - start
 	print("avant slice_object = ", delta, " ms")
+	
+	dt.insert_points(voronoi_points)
+	var nb_violations = dt.verify()
+	if nb_violations > 0:
+		print("violations = ", nb_violations)
+	visualizer.show_tetrahedralization2(dt, points_node)
+	visualizer.show_points_3d(dt.get_circumcenters(), dt.color_cc, points_node)
 	#visualizer.show_tetrahedralization(voronoi_points, voronoi_fracture, self)
 	start = Time.get_ticks_msec()
 	mesh_slicer.slice_object(original_mesh_instance, voronoi_points, depth, piece_creator)

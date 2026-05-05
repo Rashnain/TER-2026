@@ -82,3 +82,7 @@ func show_tetrahedralization(points: PackedVector3Array, voronoi_fracture: Voron
 	parent.add_child(tetrahedralization_debug_mesh)
 	var voronoi_diagram_debug_mesh = voronoi_fracture.create_debug_voronoi_mesh()
 	parent.add_child(voronoi_diagram_debug_mesh)
+
+func show_tetrahedralization2(dt: DelaunayTetrahedralization3D, parent: Node):
+	var tetrahedralization_debug_mesh = dt.draw_dt()
+	parent.add_child(tetrahedralization_debug_mesh)

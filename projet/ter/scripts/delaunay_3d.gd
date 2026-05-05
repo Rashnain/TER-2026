@@ -68,7 +68,7 @@ class VoronoiDiagram3D:
 # ==================================================================================================
 
 const BIG_SCALE := 1000.0 # Big-tetrahedron scale multiplier.
-const EPSILON := 1e-10
+const EPSILON := 1e-8
 
 # ==================================================================================================
 # DT state
@@ -222,6 +222,8 @@ func _insert_one_point(pi: int) -> void:
 	
 	while not stack.is_empty():
 		var t : Tetrahedron = stack.pop_back()
+		if t not in tetrahedra:
+			continue
 		var local_index := t.local_index(pi)
 		if local_index == -1:
 			continue
@@ -239,10 +241,12 @@ func _insert_one_point(pi: int) -> void:
 			continue
 		var d := neighbour.vertices[neighbour_apex_local_index]
 		
-		if _in_sphere(t.vertices[0], t.vertices[1], t.vertices[2], t.vertices[3], d) > 0.0:
+		if _in_sphere(t, d) > 0.0:
 			var created := _flip(t, neighbour, pi)
 			for ct in created:
 				stack.append(ct)
+	if verify():
+		print("stop")
 
 ## Returns the tetrahedron containing points[pi], the point to be inserted in the DT.
 ##
@@ -372,28 +376,21 @@ func _flip(tetrahedron: Tetrahedron, neighbour: Tetrahedron, pi: int) -> Array:
 	var b := fv[1]
 	var c := fv[2]
 	
-	# Determine visibility from p to neighbour's faces by testing if pd crosses the
-	# interior of the shared face abc
-	var cross := _orient(a, b, c, pi) * _orient(a, b, c, di)
-	
 	# Case #4: flat tetrahedron (p lies on a face of neighbour, degenerate coplanar insert)
 	if _tet_is_flat(tetrahedron):
 		print("23_1")
 		return _flip23(tetrahedron, neighbour, pi)
 	
-	# Case #1: convex union, perform flip23
-	# TODO
-	if cross < -EPSILON:
-		print(cross)
-		return _flip23(tetrahedron, neighbour, pi)
-	
 	# Case #3: pd and one edge of abc are coplanar, try flip44
-	if absf(cross) <= EPSILON:
+	if line_coplanar_with_triangle_edge(pi, di, a, b, c):
 		print("44")
 		return _try_flip44(tetrahedron, neighbour, pi, a, b, c)
 	
+	# Case #1: convex union, perform flip23
+	if line_intersects_triangle(pi, di, a, b, c):
+		return _flip23(tetrahedron, neighbour, pi)
+	
 	# Case #2: concave union — try flip32 (need third tetrahedron sharing edge pd)
-	print("32")
 	return _try_flip32(tetrahedron, neighbour, a, b, c, pi)
 
 ## Insert a point into the Tetrahedralisation by splitting a Tetrahedron tau into 4 new
@@ -443,10 +440,15 @@ func _flip14(tau: Tetrahedron, pi: int) -> Array:
 	
 	# Remove old tetrahedron from list (replace slot for memory efficiency)
 	var slot := tetrahedra.find(tau)
+	if slot == -1:
+		print("error")
 	tetrahedra[slot] = t0
 	tetrahedra.append(t1)
 	tetrahedra.append(t2)
 	tetrahedra.append(t3)
+	
+	if not check_links():
+		print("fuck 14")
 	
 	return [t0, t1, t2, t3]
 
@@ -461,20 +463,6 @@ func _flip23(tau: Tetrahedron, tau_a: Tetrahedron, pi: int) -> Array:
 	var b := fv[1]
 	var c := fv[2]
 	
-	# Neighbours external to tau / neighbour that we need to preserve
-	var nPA : Tetrahedron
-	var nPA_f: int  # tau's face opp a -> neighbour
-	var nPB : Tetrahedron
-	var nPB_f: int
-	var nPC : Tetrahedron
-	var nPC_f: int
-	var nDA : Tetrahedron
-	var nDA_f: int  # neighbour's face opp a
-	var nDB : Tetrahedron
-	var nDB_f: int
-	var nDC : Tetrahedron
-	var nDC_f: int
-	
 	# Local indices for each vertex in tau and tau_a
 	var local_a := tau.local_index(a)
 	var local_b := tau.local_index(b)
@@ -483,18 +471,19 @@ func _flip23(tau: Tetrahedron, tau_a: Tetrahedron, pi: int) -> Array:
 	var a_local_b := tau_a.local_index(b)
 	var a_local_c := tau_a.local_index(c)
 	
-	nPA = tau.neighbours[local_a]
-	nPA_f = tau.neighbour_face[local_a]
-	nPB = tau.neighbours[local_b]
-	nPB_f = tau.neighbour_face[local_b]
-	nPC = tau.neighbours[local_d]
-	nPC_f = tau.neighbour_face[local_d]
-	nDA = tau_a.neighbours[a_local_a]
-	nDA_f = tau_a.neighbour_face[a_local_a]
-	nDB = tau_a.neighbours[a_local_b]
-	nDB_f = tau_a.neighbour_face[a_local_b]
-	nDC = tau_a.neighbours[a_local_c]
-	nDC_f = tau_a.neighbour_face[a_local_c]
+	# Neighbours external to tau / neighbour that we need to preserve
+	var nPA : Tetrahedron = tau.neighbours[local_a]
+	var nPA_f : int = tau.neighbour_face[local_a]
+	var nPB : Tetrahedron = tau.neighbours[local_b]
+	var nPB_f : int = tau.neighbour_face[local_b]
+	var nPC : Tetrahedron = tau.neighbours[local_d]
+	var nPC_f : int = tau.neighbour_face[local_d]
+	var nDA : Tetrahedron = tau_a.neighbours[a_local_a]
+	var nDA_f : int = tau_a.neighbour_face[a_local_a]
+	var nDB : Tetrahedron = tau_a.neighbours[a_local_b]
+	var nDB_f : int = tau_a.neighbour_face[a_local_b]
+	var nDC : Tetrahedron = tau_a.neighbours[a_local_c]
+	var nDC_f : int = tau_a.neighbour_face[a_local_c]
 	
 	# Three new tets: {p,d,b,c}, {p,a,d,c}, {p,a,b,d}
 	var t0 := _make_tetrahedron(p, d, b, c)
@@ -519,7 +508,7 @@ func _flip23(tau: Tetrahedron, tau_a: Tetrahedron, pi: int) -> Array:
 	t2.neighbour_face[2] = 3
 	
 	# External adjacencies:
-	# t0={p,d,b,c}: face opp p(local 0)={d,b,c}=old tau_a face opp a, face opp d(local 1)={p,b,c}=old tet face opp a
+	# t0={p,d,b,c}: face opp p (local 0)={d,b,c}=old tau_a face opp a, face opp d(local 1)={p,b,c}=old tet face opp a
 	_set_neighbour(t0, 0, nDA, nDA_f)
 	_set_neighbour(t0, 1, nPA, nPA_f)
 	# t1={p,a,d,c}: face opp p={a,d,c}=nDB's side, face opp d={p,a,c}=nPB's side
@@ -532,6 +521,10 @@ func _flip23(tau: Tetrahedron, tau_a: Tetrahedron, pi: int) -> Array:
 	# Replace tau and tau_a slots
 	_replace_tet(tau, t0)
 	_replace_tet(tau_a, t1)
+	tetrahedra.append(t2)
+	
+	if not check_links():
+		print("fuck 23")
 	
 	return [t0, t1, t2]
 
@@ -569,23 +562,25 @@ func _try_flip32(tau: Tetrahedron, tau_a: Tetrahedron, a: int, b: int, c: int, p
 		e2 = b
 	
 	# Gather external neighbours:
-	# tau has faces opposite {p, a, b, c}: we want faces opp e0, e1, e2.
-	var nPE2 : Tetrahedron = tau.neighbours[tau.local_index(e2)]
-	var nPE2_f := tau.neighbour_face[tau.local_index(e2)]
-	var nDE2 : Tetrahedron = tau_a.neighbours[tau_a.local_index(e2)]
-	var nDE2_f := tau_a.neighbour_face[tau_a.local_index(e2)]
-	# tau_b has face opp e0 and face opp e1 as externals.
-	var nTE0 : Tetrahedron = tau_b.neighbours[tau_b.local_index(e0)]
-	var nTE0_f := tau_b.neighbour_face[tau_b.local_index(e0)]
-	var nTE1 : Tetrahedron = tau_b.neighbours[tau_b.local_index(e1)]
-	var nTE1_f := tau_b.neighbour_face[tau_b.local_index(e1)]
+	var neighbour_tau_e0 : Tetrahedron = tau.neighbours[tau.local_index(e0)]
+	var neighbour_face_tau_e0 : int = tau.neighbour_face[tau.local_index(e0)]
+	var neighbour_tau_e1 : Tetrahedron = tau.neighbours[tau.local_index(e1)]
+	var neighbour_face_tau_e1 : int = tau.neighbour_face[tau.local_index(e1)]
+	var neighbour_tau_a_e0 : Tetrahedron = tau_a.neighbours[tau_a.local_index(e0)]
+	var neighbour_face_tau_a_e0 : int = tau_a.neighbour_face[tau_a.local_index(e0)]
+	var neighbour_tau_a_e1 : Tetrahedron = tau_a.neighbours[tau_a.local_index(e1)]
+	var neighbour_face_tau_a_e1 : int = tau_a.neighbour_face[tau_a.local_index(e1)]
+	var neighbour_tau_b_e0 : Tetrahedron = tau_b.neighbours[tau_b.local_index(e0)]
+	var neighbour_face_tau_b_e0 : int = tau_b.neighbour_face[tau_b.local_index(e0)]
+	var neighbour_tau_b_e1 : Tetrahedron = tau_b.neighbours[tau_b.local_index(e1)]
+	var neighbour_face_tau_b_e1 := tau_b.neighbour_face[tau_b.local_index(e1)]
 	
-	# Two new tets: {p, e2, e0, d} and {p, e2, e1, d} — wait, flip32 → 2 tets.
-	# New tets share face {p, e2, d} outer faces pair with neighbours above.
+	# Two new tets: {p, e2, e0, d} and {p, e2, e1, d}
+	# New tets share face {p, e2, d} outer faces pair with neighbours above
 	var t0 := _make_tetrahedron(p, e2, e0, d)   # {p,e2,e0,d}
 	var t1 := _make_tetrahedron(p, e2, e1, d)   # {p,e2,e1,d}
 	
-	# Internal: face opp e0 in t0 ↔ face opp e1 in t1 (shared face = {p,e2,d})
+	# Internal: face opp e0 in t0, face opp e1 in t1 (shared face = {p,e2,d})
 	var li0 := t0.local_index(e0)
 	var li1 := t1.local_index(e1)
 	t0.neighbours[li0] = t1
@@ -593,17 +588,23 @@ func _try_flip32(tau: Tetrahedron, tau_a: Tetrahedron, a: int, b: int, c: int, p
 	t1.neighbours[li1] = t0
 	t1.neighbour_face[li1] = li0
 	
+	if not check_links():
+		print("fuck 32")
+	
 	# External:
-	_set_neighbour(t0, t0.local_index(d), nPE2, nPE2_f)
-	_set_neighbour(t0, t0.local_index(p), nDE2, nDE2_f)
-	_set_neighbour(t0, t0.local_index(e2), nTE0, nTE0_f)
-	_set_neighbour(t1, t1.local_index(d), nPE2, nPE2_f)   # hmm — need careful assignment
-	_set_neighbour(t1, t1.local_index(p), nDE2, nDE2_f)
-	_set_neighbour(t1, t1.local_index(e2), nTE1, nTE1_f)
+	_set_neighbour(t0, t0.local_index(d), neighbour_tau_e1, neighbour_face_tau_e1)
+	_set_neighbour(t0, t0.local_index(p), neighbour_tau_a_e1, neighbour_face_tau_a_e1)
+	_set_neighbour(t0, t0.local_index(e2), neighbour_tau_b_e1, neighbour_face_tau_b_e1)
+	_set_neighbour(t1, t1.local_index(d), neighbour_tau_e0, neighbour_face_tau_e0)
+	_set_neighbour(t1, t1.local_index(p), neighbour_tau_a_e0, neighbour_face_tau_a_e0)
+	_set_neighbour(t1, t1.local_index(e2), neighbour_tau_b_e0, neighbour_face_tau_b_e0)
 	
 	_replace_tet(tau, t0)
 	_replace_tet(tau_a, t1)
 	_remove_tet(tau_b)
+	
+	if not check_links():
+		print("fuck 32")
 	
 	return [t0, t1]
 
@@ -663,6 +664,8 @@ func _replace_tet(old_tet: Tetrahedron, new_tet: Tetrahedron) -> void:
 	var idx := tetrahedra.find(old_tet)
 	if idx != -1:
 		tetrahedra[idx] = new_tet
+	else:
+		print("error")
 	old_tet.invalidate_cc()
 
 func _remove_tet(t: Tetrahedron) -> void:
@@ -686,7 +689,7 @@ func _tet_is_flat(t: Tetrahedron) -> bool:
 	var b := points[t.vertices[1]]
 	var c := points[t.vertices[2]]
 	var d := points[t.vertices[3]]
-	var vol := absf((b-a).cross(c-a).dot(d-a))
+	var vol := absf(((b-a).cross(c-a)).dot(d-a))
 	return vol < EPSILON * EPSILON
 
 ## Find a third tetrahedron sharing edges pd and ab, bc or ac.
@@ -707,6 +710,50 @@ func _neighbour_sharing_edge_and_vertex(t: Tetrahedron, v0: int, v1: int, apex: 
 		if neighbour.local_index(v0) != -1 and neighbour.local_index(v1) != -1 and neighbour.local_index(apex) == -1:
 			return neighbour
 	return null
+
+func line_intersects_triangle(p: int, d: int, a: int, b: int, c: int) -> bool:
+	var edge1: Vector3 = points[b] - points[a]
+	var edge2: Vector3 = points[c] - points[a]
+	var direction: Vector3 = (points[d] - points[p]).normalized()
+	
+	var h: Vector3 = direction.cross(edge2)
+	var det := edge1.dot(h)
+	
+	# If det is near zero, the line is parallel to the triangle
+	if abs(det) < EPSILON:
+		return false
+	
+	var inv_det := 1.0 / det
+	
+	var s: Vector3 = points[p] - points[a]
+	var u := s.dot(h) * inv_det
+	if u < EPSILON or u > 1.0:
+		return false
+	
+	var q: Vector3 = s.cross(edge1)
+	var v := direction.dot(q) * inv_det
+	if v < EPSILON or (u + v) > 1.0:
+		return false
+	
+	return true
+
+func line_coplanar_with_triangle_edge(p: int, d: int, a: int, b: int, c: int) -> bool:
+	var line_dir: Vector3 = points[d] - points[p]
+	
+	var edges: Array = [[a, b], [b, c], [c, a]]
+	
+	for e in edges:
+		var edge_start: Vector3 = points[e[0]]
+		var edge_end: Vector3 = points[e[1]]
+		var edge_dir: Vector3 = edge_end - edge_start
+		
+		# Scalar triple product
+		var stp := (edge_start - points[p]).dot(line_dir.cross(edge_dir))
+		
+		if abs(stp) < EPSILON:
+			return true
+	
+	return false
 
 # ==================================================================================================
 # Geometric predicates
@@ -740,7 +787,11 @@ func _orient_points(a: Vector3, b: Vector3, c: Vector3, p: Vector3) -> float:
 ## if p is directly on the sphere
 ## The sign of the determinant is multiplied by sign(orient(a,b,c,d)) to give a result that
 ## is orientation-independent.
-func _in_sphere(a: int, b: int, c: int, d: int, p: int) -> float:
+func _in_sphere(t: Tetrahedron, p: int) -> float:
+	var a = t.vertices[0]
+	var b = t.vertices[1]
+	var c = t.vertices[2]
+	var d = t.vertices[3]
 	var pa := points[a] - points[p]
 	var pa2 := pa.length_squared()
 	var pb := points[b] - points[p]
@@ -750,6 +801,16 @@ func _in_sphere(a: int, b: int, c: int, d: int, p: int) -> float:
 	var pd := points[d] - points[p]
 	var pd2 := pd.length_squared()
 	return _det4(pa.x, pa.y, pa.z, pa2, pb.x, pb.y, pb.z, pb2, pc.x, pc.y, pc.z, pc2, pd.x, pd.y, pd.z, pd2) * signf(_orient(a, b, c, d))
+
+## Determines if a point p is inside, outside or lies on a sphere defined by four points a, b, c and d.
+## A positive value is returned if p is inside the sphere; a negative if p is outside; and exactly 0
+## if p is directly on the sphere
+## The sign of the determinant is multiplied by sign(orient(a,b,c,d)) to give a result that
+## is orientation-independent.
+func _in_sphere2(tet: Tetrahedron, p: int) -> float:
+	if not tet._cc_valid:
+		_circumcentre(tet)
+	return tet._cc_r2 - (points[p] - tet._cc_centre).length_squared()
 
 ## Returns the determinent of a 3x3 matrix
 func _det3(ax:float,ay:float,az:float,
@@ -775,27 +836,24 @@ func _det4( a00: float, a01: float, a02: float, a03: float,
 func _circumcentre(tet: Tetrahedron) -> Vector3:
 	if tet._cc_valid:
 		return tet._cc_centre
-	var a := points[tet.vertices[0]]
-	var b := points[tet.vertices[1]]
-	var c := points[tet.vertices[2]]
-	var d := points[tet.vertices[3]]
-	# Solve the linear system from the circumsphere equations.
-	var ab := b - a
-	var ac := c - a
-	var ad := d - a
-	var ab2 := ab.dot(ab)
-	var ac2 := ac.dot(ac)
-	var ad2 := ad.dot(ad)
-	var denom := 2.0 * _det3(ab.x,ab.y,ab.z, ac.x,ac.y,ac.z, ad.x,ad.y,ad.z)
-	if absf(denom) < EPSILON:
-		tet._cc_valid  = true
-		tet._cc_centre = (a + b + c + d) * 0.25   # fallback: centroid
-		return tet._cc_centre
-	var rx := _det3(ab2,ab.y,ab.z, ac2,ac.y,ac.z, ad2,ad.y,ad.z) / denom
-	var ry := _det3(ab.x,ab2,ab.z, ac.x,ac2,ac.z, ad.x,ad2,ad.z) / denom
-	var rz := _det3(ab.x,ab.y,ab2, ac.x,ac.y,ac2, ad.x,ad.y,ad2) / denom
-	tet._cc_centre = a + Vector3(rx, ry, rz)
-	tet._cc_valid  = true
+	var v0: Vector3 = points[tet.vertices[0]]
+	var v1: Vector3 = points[tet.vertices[1]]
+	var v2: Vector3 = points[tet.vertices[2]]
+	var v3: Vector3 = points[tet.vertices[3]]
+	
+	var row1: Vector3 = v1 - v0
+	var squareLen1: float = row1.length_squared()
+	var row2: Vector3 = v2 - v0
+	var squareLen2: float = row2.length_squared()
+	var row3: Vector3 = v3 - v0
+	var squareLen3: float = row3.length_squared()
+	
+	var det: float = _det3(row1.x, row1.y, row1.z, row2.x, row2.y, row2.z, row3.x, row3.y, row3.z) 
+	
+	var invDet: float = 1.0 / (2 * det)
+	tet._cc_centre = v0 + invDet * (squareLen3 * (row1.cross(row2)) + squareLen2 * (row3.cross(row1)) + squareLen1 * (row2.cross(row3)))
+	tet._cc_valid = true
+	tet._cc_r2 = (tet._cc_centre - v0).length_squared()
 	return tet._cc_centre
 
 # ==================================================================================================
@@ -851,17 +909,25 @@ func verify() -> int:
 			if nbr == null:
 				continue
 			var apex := nbr.vertices[tet.neighbour_face[f]]
-			var s := _in_sphere(tet.vertices[0], tet.vertices[1], tet.vertices[2], tet.vertices[3], apex)
+			var s := _in_sphere(tet, apex)
 			if s > EPSILON:
 				violations += 1
 	@warning_ignore("integer_division")
 	return violations / 2   # each pair counted twice
+
+func check_links() -> bool:
+	for t in tetrahedra:
+		for f in 4:
+			if t.neighbours[f] != null and t.neighbours[f].neighbours[t.neighbour_face[f]] != t:
+				return false
+	return true
 
 # ==================================================================================================
 # DEBUG Functions
 # ==================================================================================================
 
 var color_dt := Color(0.0, 1.0, 0.0, 1.0)
+var color_cc := Color(0.0, 0.0, 1.0)
 var color_voronoi := Color(1.0, 0.0, 0.0, 1.0)
 var voronoi_clip_radius : float = INF
 
@@ -869,13 +935,14 @@ var voronoi_clip_radius : float = INF
 ## Pass the DelaunayTetrahedralization3D instance after insert_points().
 func draw_dt(skip_sentinel_tets: bool = true) -> MeshInstance3D:
 	var im := ImmediateMesh.new()
-	var mat := _wire_material(color_dt)
+	var mat := _wire_material()
 	
 	im.surface_begin(Mesh.PRIMITIVE_LINES)
 	
 	var seen : Dictionary = {} # avoid duplicate edges
 	
 	print(tetrahedra.size())
+	var rng = RandomNumberGenerator.new()
 	for t in tetrahedra:
 		if t == null:
 			continue
@@ -894,11 +961,19 @@ func draw_dt(skip_sentinel_tets: bool = true) -> MeshInstance3D:
 				im.surface_add_vertex(points[a])
 				im.surface_set_color(color_dt)
 				im.surface_add_vertex(points[b])
+		color_dt = Color(rng.randf(), rng.randf(), rng.randf())
 	
 	im.surface_end()
 	
 	return _make_mesh_instance(im, mat)
- 
+
+func get_circumcenters() -> PackedVector3Array:
+	var circumcenters: PackedVector3Array
+	for t in tetrahedra:
+		if not _touches_sentinel(t):
+			circumcenters.append(_circumcentre(t))
+	return circumcenters
+
 ### Draw all Voronoi edges in red.
 ### Extracts the Voronoi diagram internally — no separate call needed.
 #func draw_voronoi() -> MeshInstance3D:
@@ -935,11 +1010,10 @@ func _make_mesh_instance(mesh: Mesh, mat: Material) -> MeshInstance3D:
 	return mi
  
 ## Unshaded, vertex-colour wire material.
-func _wire_material(color: Color) -> StandardMaterial3D:
+func _wire_material() -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.vertex_color_use_as_albedo = true
-	mat.albedo_color = color
 	mat.flags_use_point_size = false
 	mat.no_depth_test = false
 	mat.render_priority = 1
