@@ -136,18 +136,16 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 						visualizer.show_points_3d([mdt.get_vertex(closest_index)], Color.RED, visualizer.points_node2)
 					#print("closest_vertex is ", closest_vertex)
 
-					for t in range(mdt.get_face_count()):
-						for y in range(3):
-							if mdt.get_face_vertex(t, y) == closest_index:
-								#for j in range(3):
-									#print("point ", j, " is ", mdt.get_vertex(mdt.get_face_vertex(t, j)))
-									#visualizer.show_points_3d([mdt.get_vertex(mdt.get_face_vertex(t, j))], Color.PURPLE, visualizer.points_node2)
-								#print("normal=", mdt.get_face_normal(t))
-								var normal_t := mdt.get_face_normal(t)
-								if normal_t.length_squared() == 0: continue
-								if (v - mdt.get_vertex(closest_index)).dot(mdt.get_face_normal(t)) > 0:
-									inside = false
-									#break
+					for t in mdt.get_vertex_faces(closest_index):
+						if visualizer.points_node2.visible:
+							for j in range(3):
+								visualizer.show_points_3d([mdt.get_vertex(mdt.get_face_vertex(t, j))], Color.PURPLE, visualizer.points_node2)
+						var normal_t := mdt.get_face_normal(t)
+						if normal_t.length_squared() == 0: continue
+						if (v - mdt.get_vertex(closest_index)).dot(normal_t) > 0:
+							inside = false
+							break
+
 				if inside:
 					#print("v ", v, " is inside the mesh")
 					intersection_points.append(v)
