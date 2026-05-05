@@ -105,10 +105,51 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 				deduplicated_indexes.append(v)
 				deduplicated_points.append(vertex)
 		print("point après déduplication = ", deduplicated_points.size())
+		var insides: Array[bool]
+		for point in clip_tetrahedron:
+			#v = triangle[1]
+			#if ClipPolygon.is_point_inside_mesh(v, mdt2):
+			var inside := true
+			var distances: Array[float] = []
+			for p in mdt.get_vertex_count():
+				distances.append((mdt.get_vertex(p) - point).length_squared())
+
+			var closest_vertex := ClipPolygon.mins_arr(distances)
+			print(closest_vertex)
+			var deduplicated_faces: PackedInt32Array
+			for closest_index in closest_vertex:
+				for t in mdt.get_vertex_faces(closest_index):
+					if t not in deduplicated_faces:
+						deduplicated_faces.append(t)
+			print("face après déduplication = ", deduplicated_faces.size())
+			#for closest_index in closest_vertex:
+				#if visualizer.points_node2.visible:
+					#visualizer.show_points_3d([mdt.get_vertex(closest_index)], Color.RED, visualizer.points_node2)
+				#print("closest_vertex is ", closest_vertex)
+
+				#print(mdt.get_vertex_faces(closest_index))
+				# TODO dédupliquer indice face
+			for t in deduplicated_faces:
+			#for t in mdt.get_vertex_faces(closest_index):
+				if visualizer.points_node2.visible:
+					for j in range(3):
+						visualizer.show_points_3d([mdt.get_vertex(mdt.get_face_vertex(t, j))], Color.PURPLE, visualizer.points_node2)
+				var normal_t := mdt.get_face_normal(t)
+				if normal_t.length_squared() == 0: continue
+				if (point - mdt.get_vertex(mdt.get_face_vertex(t, 0))).dot(normal_t) > 0:
+					inside = false
+					break
+
+			#if inside:
+				#print("v ", v, " is inside the mesh")
+				#intersection_points.append(v)
+			insides.append(inside)
+			#break
 		for i in range(0, len(clip_indices), 3):
 			start = Time.get_ticks_msec()
+			var indices := [clip_indices[i], clip_indices[i + 1], clip_indices[i + 2]]
 			#i = 2 * 3
-			var triangle := [clip_tetrahedron[clip_indices[i]], clip_tetrahedron[clip_indices[i + 1]], clip_tetrahedron[clip_indices[i + 2]]]
+			var triangle := [clip_tetrahedron[indices[0]], clip_tetrahedron[indices[1]], clip_tetrahedron[indices[2]]]
 			var ab = triangle[1] - triangle[0]
 			var ac = triangle[2] - triangle[0]
 			var normal = ac.cross(ab).normalized()
@@ -128,46 +169,9 @@ func slice_object(mesh_instance: MeshInstance3D, points: PackedVector3Array, dep
 			print("compute intersection sans clipper = ", delta, " ms")
 			print("intersection points sans clipper = ", intersection_points.size())
 			start = Time.get_ticks_msec()
-			# TODO les points sont calculé plusieurs fois pour rien!
-			# opti possible 12 -> 4
-			for v in triangle:
-				#v = triangle[1]
-				#if ClipPolygon.is_point_inside_mesh(v, mdt2):
-				var inside := true
-				var distances: Array[float] = []
-				for v2 in range(mdt.get_vertex_count()):
-					distances.append((mdt.get_vertex(v2) - v).length_squared())
-
-				var closest_vertex := ClipPolygon.mins_arr(distances)
-				print(closest_vertex)
-				var deduplicated_faces: PackedInt32Array
-				for closest_index in closest_vertex:
-					for t in mdt.get_vertex_faces(closest_index):
-						if t not in deduplicated_faces:
-							deduplicated_faces.append(t)
-				print("face après déduplication = ", deduplicated_faces.size())
-				#for closest_index in closest_vertex:
-					#if visualizer.points_node2.visible:
-						#visualizer.show_points_3d([mdt.get_vertex(closest_index)], Color.RED, visualizer.points_node2)
-					#print("closest_vertex is ", closest_vertex)
-
-					#print(mdt.get_vertex_faces(closest_index))
-					# TODO dédupliquer indice face
-				for t in deduplicated_faces:
-				#for t in mdt.get_vertex_faces(closest_index):
-					if visualizer.points_node2.visible:
-						for j in range(3):
-							visualizer.show_points_3d([mdt.get_vertex(mdt.get_face_vertex(t, j))], Color.PURPLE, visualizer.points_node2)
-					var normal_t := mdt.get_face_normal(t)
-					if normal_t.length_squared() == 0: continue
-					if (v - mdt.get_vertex(mdt.get_face_vertex(t, 0))).dot(normal_t) > 0:
-						inside = false
-						break
-
-				if inside:
-					#print("v ", v, " is inside the mesh")
-					intersection_points.append(v)
-				#break
+			for v in indices:
+				if insides[v]:
+					intersection_points.append(clip_tetrahedron[v])
 			print("intersection points = ", intersection_points.size())
 			delta = Time.get_ticks_msec() - start
 			print("compute intersection clipper = ", delta, " ms")
