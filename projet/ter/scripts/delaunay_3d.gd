@@ -8,7 +8,6 @@
 ## Usage
 ##   var dt := DelaunayTetrahedralization3D.new()
 ##   dt.insert_points(your_array_of_vector3)
-##   var voronoi := dt.extract_voronoi() # → VoronoiDiagram3D
 
 class_name DelaunayTetrahedralization3D
 
@@ -32,7 +31,7 @@ class Tetrahedron:
 	func _init(_vertices: PackedInt32Array) -> void:
 		vertices = _vertices
 		neighbours = [null, null, null, null]
-		neighbour_face = PackedInt32Array([0, 0, 0, 0])
+		neighbour_face = PackedInt32Array([-1, -1, -1, -1])
 	
 	## Return the three vertex indices of face f (the face opposite vertices[f]).
 	func face_verts(f: int) -> PackedInt32Array:
@@ -53,21 +52,11 @@ class Tetrahedron:
 	func invalidate_cc() -> void:
 		_cc_valid = false
 
-class VoronoiDiagram3D:
-	## One Voronoi vertex per Delaunay tetrahedron
-	var vertices := PackedVector3Array()
-	## cells[i] = Array of Voronoi vertex indices arrays forming cell of input point i
-	var cells : Array = []
-	## edges[i] = [v0_idx, v1_idx] Voronoi edge (dual to Delaunay triangle face)
-	var edges : Array = []
-	
-	var input_points := PackedVector3Array()
-
 # ==================================================================================================
 # Constants
 # ==================================================================================================
 
-const BIG_SCALE := 1000.0 # Big-tetrahedron scale multiplier.
+const BIG_SCALE := 5.0 # Big-tetrahedron scale multiplier.
 const EPSILON := 1e-8
 
 # ==================================================================================================
@@ -78,10 +67,10 @@ const EPSILON := 1e-8
 var points := PackedVector3Array()
 
 ## All live tetrahedra (some slots may be null after flips/removals)
-var tetrahedra : Array = [] # Array[Tetrahedron]
+var tetrahedra : Array[Tetrahedron] = []
 
 ## How many user points have been inserted.
-var _n_user_pts  : int = 0
+var n_user_points  : int = 0
 
 # ==================================================================================================
 # Public functions
@@ -98,72 +87,9 @@ func insert_points(pts: Array) -> void:
 func insert_point(p: Vector3) -> int:
 	var idx := points.size()
 	points.append(p)
-	_n_user_pts += 1
+	n_user_points += 1
 	_insert_one_point(idx)
 	return idx
-
-### Extract the Voronoi diagram dual to the current DT.
-### Filters out all cells/vertices touching the big-tetrahedron sentinels.
-#func extract_voronoi() -> VoronoiDiagram3D:
-	#var vd := VoronoiDiagram3D.new()
-	#vd.input_points = PackedVector3Array(points.slice(4))
-	#
-	## Map tetrahedron to Voronoi vertex index
-	#var tetrahedron_to_voronoi_vertex : Dictionary = {}
-	#var vv_list   : PackedVector3Array = PackedVector3Array()
-	#
-	#for ti in tetrahedra.size():
-		#var tet : Tetrahedron = tetrahedra[ti]
-		#if tet == null:
-			#continue
-		#if _tet_touches_big(tet):
-			#tetrahedron_to_voronoi_vertex[ti] = -1
-			#continue
-		#var cc := _circumcentre(tet)
-		#tetrahedron_to_voronoi_vertex[ti] = vv_list.size()
-		#vv_list.append(cc)
-	#
-	#vd.vertices = vv_list
-	#
-	## Cells
-	#var n_user := _n_user_pts
-	#vd.cells.resize(n_user)
-	#for i in n_user:
-		#vd.cells[i] = []
-	#
-	#for ti in tetrahedra.size():
-		#var tet : Tetrahedron = tetrahedra[ti]
-		#if tet == null or tetrahedron_to_voronoi_vertex.get(ti, -1) == -1:
-			#continue
-		#var vv_idx : int = tetrahedron_to_voronoi_vertex[ti]
-		#for lv in 4:
-			#var gv := tet.vertices[lv]
-			#if gv >= 4: # real user point
-				#var cell_idx := gv - 4
-				#if not vv_idx in vd.cells[cell_idx]:
-					#vd.cells[cell_idx].append(vv_idx)
-	
-	# Edges (dual to Delaunay triangular faces) 
-	#var seen_edges : Dictionary = {}
-	#for ti in tetrahedra.size():
-		#var tetrahedron : Tetrahedron = tetrahedra[ti]
-		#if tetrahedron == null:
-			#continue
-		#var vv0 : int = tetrahedron_to_voronoi_vertex.get(ti, -1)
-		#for f in 4:
-			#var nbr : Tetrahedron = tetrahedron.neighbours[f]
-			#if nbr == null:
-				#continue
-			#var nbr_idx := tetrahedra.find(nbr)
-			#var vv1 : int = tetrahedron_to_voronoi_vertex.get(nbr_idx, -1)
-			#if vv0 == -1 or vv1 == -1:
-				#continue
-			#var key := mini(vv0, vv1) * 1000000 + maxi(vv0, vv1)
-			#if not seen_edges.has(key):
-				#seen_edges[key] = true
-				#vd.edges.append([vv0, vv1])
-	#
-	#return vd
 
 # ==================================================================================================
 # Initialisation
@@ -172,7 +98,7 @@ func insert_point(p: Vector3) -> int:
 func _initialise(pts: Array) -> void:
 	points.clear()
 	tetrahedra.clear()
-	_n_user_pts = pts.size()
+	n_user_points = pts.size()
 	
 	# Compute bounding box of input
 	var lo := Vector3(INF, INF, INF)
@@ -809,7 +735,7 @@ func _in_sphere(t: Tetrahedron, p: int) -> float:
 ## is orientation-independent.
 func _in_sphere2(tet: Tetrahedron, p: int) -> float:
 	if not tet._cc_valid:
-		_circumcentre(tet)
+		circumcentre(tet)
 	return tet._cc_r2 - (points[p] - tet._cc_centre).length_squared()
 
 ## Returns the determinent of a 3x3 matrix
@@ -833,7 +759,7 @@ func _det4( a00: float, a01: float, a02: float, a03: float,
 # Circumcentre
 # ==================================================================================================
 
-func _circumcentre(tet: Tetrahedron) -> Vector3:
+func circumcentre(tet: Tetrahedron) -> Vector3:
 	if tet._cc_valid:
 		return tet._cc_centre
 	var v0: Vector3 = points[tet.vertices[0]]
@@ -869,6 +795,34 @@ func get_star(ui: int) -> Array:
 			star.append(t)
 	return star
 
+## Return the point at user-point index ui (ignoring sentinels).
+func get_user_point(ui: int) -> Vector3:
+	if ui < 0:
+		ui = points.size() - 4 - ui
+	
+	var global_index := ui + 4
+	if global_index >= points.size():
+		push_error("User-input index outside of points array")
+		return Vector3()
+	return points[global_index]
+
+## Return an array of all the Tetrahedra from the Tetrahedralisation (not counting tetrahedra formed
+## with the big tetrahedron and erase their adjacency)
+func extract_tetrahedra() -> Array[Tetrahedron]:
+	var result : Array[Tetrahedron] = []
+	for t in tetrahedra:
+		if not _tet_touches_big(t):
+			result.append(t)
+		else:
+			for f in 4:
+				var nbr = t.neighbours[f]
+				var nb_f = t.neighbour_face[f]
+				if nbr == null:
+					continue
+				nbr.neighbours[nb_f] = null
+				nbr.neighbour_face[nb_f] = -1
+	return result
+
 ## Return neighbour user-point indices for user-point ui (Delaunay edges from ui).
 func get_delaunay_neighbours(ui: int) -> PackedInt32Array:
 	var global_index  := ui + 4
@@ -890,7 +844,7 @@ func get_voronoi_cell_vertices(ui: int) -> PackedVector3Array:
 	var verts : PackedVector3Array = PackedVector3Array()
 	for t in star:
 		if not _tet_touches_big(t):
-			verts.append(_circumcentre(t))
+			verts.append(circumcentre(t))
 		else:
 			#TODO
 			continue
@@ -971,36 +925,8 @@ func get_circumcenters() -> PackedVector3Array:
 	var circumcenters: PackedVector3Array
 	for t in tetrahedra:
 		if not _touches_sentinel(t):
-			circumcenters.append(_circumcentre(t))
+			circumcenters.append(circumcentre(t))
 	return circumcenters
-
-### Draw all Voronoi edges in red.
-### Extracts the Voronoi diagram internally — no separate call needed.
-#func draw_voronoi() -> MeshInstance3D:
-	#var vd := extract_voronoi()
-	#var im := ImmediateMesh.new()
-	#var mat := _wire_material(color_voronoi)
-	#
-	#im.surface_begin(Mesh.PRIMITIVE_LINES)
-	#
-	#for edge in vd.edges:
-		#var p0 : Vector3 = vd.vertices[edge[0]]
-		#var p1 : Vector3 = vd.vertices[edge[1]]
-		#
-		## Optional clip: skip edges with endpoints far from origin
-		#if voronoi_clip_radius < INF:
-			#if p0.length() > voronoi_clip_radius or p1.length() > voronoi_clip_radius:
-				#continue
-		#
-		#im.surface_set_color(color_voronoi)
-		#im.surface_add_vertex(p0)
-		#im.surface_set_color(color_voronoi)
-		#im.surface_add_vertex(p1)
-	#
-	#im.surface_end()
-	#
-	#return _make_mesh_instance(im, mat)
-
 
 func _make_mesh_instance(mesh: Mesh, mat: Material) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
