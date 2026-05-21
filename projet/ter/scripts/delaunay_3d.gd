@@ -172,7 +172,7 @@ func _insert_one_point(pi: int) -> void:
 			for ct in created:
 				stack.append(ct)
 	if verify():
-		print("stop")
+		print("Error: Delaunayness not respectedd")
 
 ## Returns the tetrahedron containing points[pi], the point to be inserted in the DT.
 ##
@@ -304,12 +304,10 @@ func _flip(tetrahedron: Tetrahedron, neighbour: Tetrahedron, pi: int) -> Array:
 	
 	# Case #4: flat tetrahedron (p lies on a face of neighbour, degenerate coplanar insert)
 	if _tet_is_flat(tetrahedron):
-		print("23_1")
 		return _flip23(tetrahedron, neighbour, pi)
 	
 	# Case #3: pd and one edge of abc are coplanar, try flip44
 	if line_coplanar_with_triangle_edge(pi, di, a, b, c):
-		print("44")
 		return _try_flip44(tetrahedron, neighbour, pi, a, b, c)
 	
 	# Case #1: convex union, perform flip23
@@ -374,7 +372,7 @@ func _flip14(tau: Tetrahedron, pi: int) -> Array:
 	tetrahedra.append(t3)
 	
 	if not check_links():
-		print("fuck 14")
+		print("Error: Adjacency links for operation flip14")
 	
 	return [t0, t1, t2, t3]
 
@@ -450,7 +448,7 @@ func _flip23(tau: Tetrahedron, tau_a: Tetrahedron, pi: int) -> Array:
 	tetrahedra.append(t2)
 	
 	if not check_links():
-		print("fuck 23")
+		print("Error: Adjacency links for flip23")
 	
 	return [t0, t1, t2]
 
@@ -514,9 +512,6 @@ func _try_flip32(tau: Tetrahedron, tau_a: Tetrahedron, a: int, b: int, c: int, p
 	t1.neighbours[li1] = t0
 	t1.neighbour_face[li1] = li0
 	
-	if not check_links():
-		print("fuck 32")
-	
 	# External:
 	_set_neighbour(t0, t0.local_index(d), neighbour_tau_e1, neighbour_face_tau_e1)
 	_set_neighbour(t0, t0.local_index(p), neighbour_tau_a_e1, neighbour_face_tau_a_e1)
@@ -530,7 +525,7 @@ func _try_flip32(tau: Tetrahedron, tau_a: Tetrahedron, a: int, b: int, c: int, p
 	_remove_tet(tau_b)
 	
 	if not check_links():
-		print("fuck 32")
+		print("Error: Adjacency links for flip32")
 	
 	return [t0, t1]
 
