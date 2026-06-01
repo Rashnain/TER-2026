@@ -11,6 +11,8 @@ size = Vector3(5, 0, 5)
 size = Vector2(5, 5)
 
 [sub_resource type="SphereMesh" id="SphereMesh_errlg"]
+radial_segments = 16
+rings = 8
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_iyx0m"]
 
@@ -116,6 +118,7 @@ text = "Nb Points"
 unique_name_in_owner = true
 layout_mode = 2
 min_value = 2.0
+max_value = 999.0
 value = 50.0
 
 [node name="HBoxContainer2" type="HBoxContainer" parent="CanvasLayer/Control/PanelContainer/VBoxContainer" unique_id=2044941622]
@@ -141,6 +144,16 @@ text = "Use planes"
 
 [node name="UsePlanesButton" type="CheckButton" parent="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer5" unique_id=1181324305]
 unique_name_in_owner = true
+layout_mode = 2
+
+[node name="HBoxContainer7" type="HBoxContainer" parent="CanvasLayer/Control/PanelContainer/VBoxContainer" unique_id=290674071]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer7" unique_id=1154249025]
+layout_mode = 2
+text = "Use Voronoi"
+
+[node name="UseVoronoiButton" type="CheckButton" parent="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer7" unique_id=595001762]
 layout_mode = 2
 
 [node name="HBoxContainer3" type="HBoxContainer" parent="CanvasLayer/Control/PanelContainer/VBoxContainer" unique_id=1092337495]
@@ -185,6 +198,7 @@ layout_mode = 2
 text = "Reset"
 
 [connection signal="toggled" from="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer5/UsePlanesButton" to="." method="_on_use_planes_toggled"]
+[connection signal="toggled" from="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer7/UseVoronoiButton" to="." method="_on_use_voronoi_button_toggled"]
 [connection signal="toggled" from="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer3/CheckButton" to="." method="_on_wireframe_toggled"]
 [connection signal="toggled" from="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer6/CheckButton" to="." method="_on_points_toggled"]
 [connection signal="toggled" from="CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer4/CheckButton" to="." method="_on_back_face_culling_toggled"]

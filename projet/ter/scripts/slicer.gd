@@ -13,13 +13,16 @@ var aabb: AABB
 @onready var points_spin: SpinBox = %PointsSpinBox
 @onready var depth_spin: SpinBox = %DepthSpinBox
 @onready var use_planes_button: CheckButton = %UsePlanesButton
+@onready var use_voronoi_button: CheckButton = $CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer7/UseVoronoiButton
 
 var original_mesh_instance: MeshInstance3D
 var voronoi_fracture: VoronoiFracture
 var dt: DelaunayTetrahedralization3D
+var vd: VoronoiDiagram3D
 var tetrahedralization_debug_mesh: Node3D
 var voronoi_diagram_debug_mesh: Node3D
 var use_planes: bool
+var use_voronoi: bool
 var clip_tetrahedron: PackedVector3Array
 var clip_indices: Array[int]
 
@@ -32,6 +35,7 @@ var impact_manager: ImpactManager
 func _ready():
 	voronoi_fracture = VoronoiFracture.new()
 	dt = DelaunayTetrahedralization3D.new()
+	vd = VoronoiDiagram3D.new()
 	add_child(voronoi_fracture)
 	original_mesh_instance = mesh_to_cut.get_node("MeshInstance3D")
 
@@ -87,6 +91,8 @@ func _on_use_planes_toggled(toggled_on: bool) -> void:
 	use_planes = toggled_on
 	mesh_slicer.use_planes = use_planes
 	piece_creator.use_planes = use_planes
+	if toggled_on and use_voronoi_button.button_pressed:
+		use_voronoi_button.button_pressed = false
 
 func _on_slice_button_pressed():
 	var start := Time.get_ticks_msec()
@@ -111,14 +117,33 @@ func _on_slice_button_pressed():
 		print("violations = ", nb_violations)
 	visualizer.show_tetrahedralization2(dt, points_node)
 	visualizer.show_points_3d(dt.get_circumcenters(), dt.color_cc, points_node)
+	vd.build(dt, aabb)
+	#var cell = vd.cells[0]
+	#var offset := 0
+	#var new_clip_vertices : Array[Vector3] = []
+	#var new_clip_indices : Array[int] = []
+	#for face in cell.faces:
+		#var vertices_count := 0
+		#for v in face.vertices:
+			#new_clip_vertices.append(v)
+			#if vertices_count > 1:
+				#new_clip_indices.append(offset)
+				#new_clip_indices.append(offset + vertices_count-1)
+				#new_clip_indices.append(offset + vertices_count)
+			#vertices_count += 1
+		#offset += vertices_count
+	#mesh_slicer.clip_tetrahedron = new_clip_vertices
+	#mesh_slicer.clip_indices = new_clip_indices
 	#visualizer.show_tetrahedralization(voronoi_points, voronoi_fracture, self)
 
 	var delta := Time.get_ticks_msec() - start
 	print("avant slice_object = ", delta, " ms")
 	start = Time.get_ticks_msec()
-	mesh_slicer.slice_object(original_mesh_instance, voronoi_points, depth, piece_creator)
+	mesh_slicer.voronoi_slicing(original_mesh_instance, vd, piece_creator)
 	delta = Time.get_ticks_msec() - start
 	print("slice_object = ", delta, " ms")
+	visualizer.show_voronoi_dual(vd, points_node)
+	visualizer.show_aabb_points(aabb, points_node)
 	slice_button.disabled = true
 
 func _on_reset_button_pressed():
@@ -142,7 +167,11 @@ func clean_pieces():
 		if piece.name != "points":
 			piece.queue_free()
 
-
 func _on_points_toggled(toggled_on: bool) -> void:
 	visualizer.points_node.visible = toggled_on
 	visualizer.points_node2.visible = toggled_on
+
+func _on_use_voronoi_button_toggled(toggled_on: bool) -> void:
+	use_voronoi = toggled_on
+	if toggled_on and use_planes_button.button_pressed:
+		use_planes_button.button_pressed = false
