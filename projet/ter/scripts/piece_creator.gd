@@ -3,6 +3,7 @@ extends RefCounted
 
 var pieces_node: Node3D
 var use_planes: bool
+var use_back_face_culling: bool
 
 func _init(pieces_n: Node3D, use_p: bool):
 	pieces_node = pieces_n
@@ -70,6 +71,7 @@ func create_piece(m: Mesh, t: Transform3D, velocity: Vector3, offset: Vector3, i
 	mat.albedo_color = Color.PURPLE if is_left else Color.PINK
 
 	new_mesh_inst.material_override = mat
+	mat.cull_mode = BaseMaterial3D.CULL_BACK if use_back_face_culling else BaseMaterial3D.CULL_DISABLED
 	new_body.add_child(new_mesh_inst)
 	new_body.add_child(new_shape)
 

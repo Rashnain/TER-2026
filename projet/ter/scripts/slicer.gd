@@ -14,6 +14,7 @@ var aabb: AABB
 @onready var depth_spin: SpinBox = %DepthSpinBox
 @onready var use_planes_button: CheckButton = %UsePlanesButton
 @onready var use_voronoi_button: CheckButton = %UseVoronoi
+@onready var use_back_face_culling_button: CheckButton = %BackFaceCull
 
 var original_mesh_instance: MeshInstance3D
 var voronoi_fracture: VoronoiFracture
@@ -23,6 +24,7 @@ var tetrahedralization_debug_mesh: Node3D
 var voronoi_diagram_debug_mesh: Node3D
 var use_planes: bool
 var use_voronoi: bool
+var use_back_face_culling: bool
 var clip_tetrahedron: PackedVector3Array
 var clip_indices: Array[int]
 
@@ -46,6 +48,7 @@ func _ready():
 	aabb_node.rotate(Vector3.UP, PI/2)
 	use_planes = use_planes_button.button_pressed
 	use_voronoi = use_voronoi_button.button_pressed
+	use_back_face_culling = use_back_face_culling_button.button_pressed
 	#clip_tetrahedron = [Vector3(0, 0, -2), Vector3(-2, 0, 0), Vector3(0, 0, 2), Vector3(0, 2, 0)] # full ext, aligné axes
 	#clip_tetrahedron = [Vector3(0.5, 0, -2), Vector3(-2, 0, 0), Vector3(0, 0, 2), Vector3(0, 2, 0)] # full ext, !aligné
 	#clip_tetrahedron = [Vector3(1, -0.35, -2), Vector3(-2, 0.5, 0), Vector3(0, 0, 2), Vector3(0, 2, 0)] # obj flottant
@@ -83,6 +86,7 @@ func _ready():
 	point_sampler = PointSampler.new(aabb)
 	visualizer = Visualizer.new(points_node, points_node2, base_point)
 	piece_creator = PieceCreator.new(pieces_node, use_planes)
+	piece_creator.use_back_face_culling = use_back_face_culling
 	mesh_slicer = MeshSlicer.new(use_planes, clip_tetrahedron, clip_indices, visualizer)
 	impact_manager = ImpactManager.new()
 
@@ -158,6 +162,8 @@ func _on_wireframe_toggled(toggled_on: bool) -> void:
 
 func _on_back_face_culling_toggled(toggled_on: bool) -> void:
 	var rigid_bodies: Array[Node] = pieces_node.get_children()
+	use_back_face_culling = toggled_on
+	piece_creator.use_back_face_culling = toggled_on
 	for rb in rigid_bodies:
 		if (rb.get_child_count() == 0): continue
 		var mi := rb.get_child(0)

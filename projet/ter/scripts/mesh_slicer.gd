@@ -289,10 +289,17 @@ static func _build_cell_array_mesh(cell: VoronoiDiagram3D.VoronoiCell) -> ArrayM
 		var n := face.normal
 		var triangles := _triangulate_polygon(polygon)
 		for triangle: PackedVector3Array in triangles:
-			for v: Vector3 in triangle:
-				vertices.append(v)
-				normals.append(n)
-	
+				var a = triangle[0]
+				var b = triangle[1]
+				var c = triangle[2]
+				var normal = (c - a).cross(b - a).normalized()
+				vertices.append(a)
+				vertices.append(b)
+				vertices.append(c)
+				normals.append(normal)
+				normals.append(normal)
+				normals.append(normal)
+
 	if vertices.is_empty():
 		return null
 	
