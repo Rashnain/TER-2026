@@ -13,7 +13,7 @@ var aabb: AABB
 @onready var points_spin: SpinBox = %PointsSpinBox
 @onready var depth_spin: SpinBox = %DepthSpinBox
 @onready var use_planes_button: CheckButton = %UsePlanesButton
-@onready var use_voronoi_button: CheckButton = $CanvasLayer/Control/PanelContainer/VBoxContainer/HBoxContainer7/UseVoronoiButton
+@onready var use_voronoi_button: CheckButton = %UseVoronoi
 
 var original_mesh_instance: MeshInstance3D
 var voronoi_fracture: VoronoiFracture
@@ -43,8 +43,9 @@ func _ready():
 	aabb.abs()
 	aabb_node.mesh.size = aabb.size
 
-	aabb_node.rotate(Vector3.UP, PI/2) 
+	aabb_node.rotate(Vector3.UP, PI/2)
 	use_planes = use_planes_button.button_pressed
+	use_voronoi = use_voronoi_button.button_pressed
 	#clip_tetrahedron = [Vector3(0, 0, -2), Vector3(-2, 0, 0), Vector3(0, 0, 2), Vector3(0, 2, 0)] # full ext, aligné axes
 	#clip_tetrahedron = [Vector3(0.5, 0, -2), Vector3(-2, 0, 0), Vector3(0, 0, 2), Vector3(0, 2, 0)] # full ext, !aligné
 	#clip_tetrahedron = [Vector3(1, -0.35, -2), Vector3(-2, 0.5, 0), Vector3(0, 0, 2), Vector3(0, 2, 0)] # obj flottant
@@ -139,7 +140,10 @@ func _on_slice_button_pressed():
 	var delta := Time.get_ticks_msec() - start
 	print("avant slice_object = ", delta, " ms")
 	start = Time.get_ticks_msec()
-	mesh_slicer.voronoi_slicing(original_mesh_instance, vd, piece_creator)
+	if use_voronoi:
+		mesh_slicer.voronoi_slicing(original_mesh_instance, vd, piece_creator)
+	else:
+		mesh_slicer.slice_object(original_mesh_instance, voronoi_points, depth, piece_creator)
 	delta = Time.get_ticks_msec() - start
 	print("slice_object = ", delta, " ms")
 	visualizer.show_voronoi_dual(vd, points_node)
