@@ -86,3 +86,25 @@ func show_tetrahedralization(points: PackedVector3Array, voronoi_fracture: Voron
 func show_tetrahedralization2(dt: DelaunayTetrahedralization3D, parent: Node):
 	var tetrahedralization_debug_mesh = dt.draw_dt()
 	parent.add_child(tetrahedralization_debug_mesh)
+
+func show_voronoi_dual(vd: VoronoiDiagram3D, parent: Node):
+	var voronoi_debug_mesh = vd.draw_voronoi_edges()
+	parent.add_child(voronoi_debug_mesh)
+
+func show_aabb_points(aabb: AABB, parent: Node):
+	var lo : Vector3 = aabb.position
+	var hi : Vector3 = aabb.end
+	var new_point := MeshInstance3D.new()
+	new_point.mesh = PointMesh.new()
+	new_point.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	new_point.position = lo
+	new_point.mesh.material = base_point.mesh.material.duplicate()
+	new_point.mesh.material.albedo_color = Color(1.0, 0.0, 1.0)
+	parent.add_child(new_point)
+	var new_point2 := MeshInstance3D.new()
+	new_point2.mesh = PointMesh.new()
+	new_point2.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	new_point2.position = hi
+	new_point2.mesh.material = base_point.mesh.material.duplicate()
+	new_point2.mesh.material.albedo_color = Color(1.0, 1.0, 1.0)
+	parent.add_child(new_point2)

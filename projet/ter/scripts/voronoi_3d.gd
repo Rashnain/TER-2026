@@ -34,7 +34,7 @@ class VoronoiFace:
 ## site_index - 0-based user-point index (matches dt.get_user_point)
 ## faces      - all faces of the cell (VoronoiFace[])
 class VoronoiCell:
-	var site : Vector3 = Vector3.ZERO
+	var site := Vector3.ZERO
 	var site_index : int = -1
 	var faces : Array[VoronoiFace] = []
 
@@ -52,7 +52,7 @@ var bounding_box := AABB()
 # Constants
 # ==================================================================================================
 
-const EPSILON := 1e-7
+const EPSILON := 1e-5
 
 # ==================================================================================================
 # Build
@@ -306,12 +306,12 @@ func _gather_segments_into_polygon(segments: Array) -> PackedVector3Array:
 		for si in remaining.size():
 			var segment : Array = remaining[si]
 			for v in polygon:
-				if v.distance_squared_to(segment[0]) < EPSILON * EPSILON:
+				if v.distance_squared_to(segment[0]) < EPSILON:
 					polygon.append(segment[1])
 					remaining.remove_at(si)
 					found = true
 					break
-				elif v.distance_squared_to(segment[1]) < EPSILON * EPSILON:
+				elif v.distance_squared_to(segment[1]) < EPSILON:
 					polygon.append(segment[0])
 					remaining.remove_at(si)
 					found = true
@@ -457,7 +457,7 @@ func draw_voronoi_edges(colour: Color = Color(1.0, 0.0, 0.0)) -> MeshInstance3D:
 	im.surface_begin(Mesh.PRIMITIVE_LINES)
 	var seen : Dictionary = {}
 	
-	for cell in cells:
+	for cell in cells.slice(0,1):
 		cell = _clip_cell_to_aabb(cell, bounding_box)
 		if cell.faces.is_empty():
 			continue
