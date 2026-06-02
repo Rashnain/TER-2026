@@ -242,17 +242,15 @@ func voronoi_slicing(mesh_instance: MeshInstance3D, vd: VoronoiDiagram3D, piece_
 	
 	var triangles_normals_couple : Array = _extract_triangles_and_normals(array_mesh)
 	var triangles: Array[PackedVector3Array] = triangles_normals_couple[0]
-	var normals: Array[PackedVector3Array] = triangles_normals_couple[1]
 	for cell in vd.cells:
 		var updated_cell : VoronoiDiagram3D.VoronoiCell = cell
 		#var cell_aabb := _aabb_of_voronoi_cell(cell)
 		for ti in triangles.size():
 			var triangle : PackedVector3Array = triangles[ti]
-			var vertices_normals : PackedVector3Array = normals[ti]
 			#if not _aabb_intersects_triangle(cell_aabb, triangle):
 				#continue
 			
-			var cutting_plane: Plane = _build_cutting_plane(triangle, vertices_normals)
+			var cutting_plane: Plane = _build_cutting_plane(triangle)
 			var segments : Array = []
 			var new_faces : Array[VoronoiDiagram3D.VoronoiFace] = []
 			for face in updated_cell.faces:
@@ -286,19 +284,26 @@ static func _build_cell_array_mesh(cell: VoronoiDiagram3D.VoronoiCell) -> ArrayM
  
 	for face in cell.faces:
 		var polygon = face.vertices
-		var n := face.normal
 		var triangles := _triangulate_polygon(polygon)
 		for triangle: PackedVector3Array in triangles:
-				var a = triangle[0]
-				var b = triangle[1]
-				var c = triangle[2]
-				var normal = (c - a).cross(b - a).normalized()
+			var a = triangle[0]
+			var b = triangle[1]
+			var c = triangle[2]
+			var normal = (c - a).cross(b - a).normalized()
+			if face.normal.dot(normal) > 0: # même sens
 				vertices.append(a)
 				vertices.append(b)
 				vertices.append(c)
 				normals.append(normal)
 				normals.append(normal)
 				normals.append(normal)
+			else:
+				vertices.append(c)
+				vertices.append(b)
+				vertices.append(a)
+				normals.append(-normal)
+				normals.append(-normal)
+				normals.append(-normal)
 
 	if vertices.is_empty():
 		return null
@@ -398,18 +403,12 @@ func _clip_polygon_by_plane(polygon: PackedVector3Array, plane: Plane) -> Array:
 				break
 	return [result, clip_points]
 
-static func _build_cutting_plane(triangle: PackedVector3Array, normals: PackedVector3Array) -> Plane:
+static func _build_cutting_plane(triangle: PackedVector3Array) -> Plane:
 	var v0: Vector3 = triangle[0]
 	var v1: Vector3 = triangle[1]
 	var v2: Vector3 = triangle[2]
-	var n: Vector3 = (v1 - v0).cross(v2 - v0).normalized()
-	
-	# Average the vertex normals for this triangle to get the expected facing
-	var vertex_normal: Vector3 = (normals[0] + normals[1] + normals[2]).normalized()
-	
-	# If our computed normal points opposite to the mesh normals, flip it
-	if n.dot(vertex_normal) < 0.0:
-		n = -n
+	var n: Vector3 = (v2 - v0).cross(v1 - v0).normalized()
+
 	return Plane(n, v0)
 
 ## Returns an Array of triangles from the original mesh
@@ -451,7 +450,7 @@ static func _extract_triangles_and_normals(mesh: ArrayMesh) -> Array:
 				j += 3
 	return [triangles, triangles_normals]
 
-static func _triangulate_polygon(polygon: Array) -> Array:
+static func _triangulate_polygon(polygon: PackedVector3Array) -> Array[PackedVector3Array]:
 	var triangles: Array[PackedVector3Array] = []
 	var count: int = polygon.size()
 	if count < 3:
